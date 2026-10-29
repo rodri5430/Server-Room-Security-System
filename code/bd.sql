@@ -17,12 +17,12 @@ CREATE TABLE TAM.temp_readings(
     recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 
-3 - Dados de Acesso (acess_logs) 
+3 - Dados de Acesso (access_logs) 
 CREATE TABLE TAM.access_logs (
     id SERIAL PRIMARY KEY,
     id_user INT REFERENCES users(id) ON DELETE CASCADE,
-    ip_address VARCHAR(45),
     login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    login_exit_time TIMESTAMP DEFAULT NULL,
     status VARCHAR(20) DEFAULT 'success' -- ex: success, failed
 );
 
