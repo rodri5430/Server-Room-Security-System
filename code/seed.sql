@@ -23,7 +23,7 @@ CREATE TABLE tam.access_logs (
     id_user INT REFERENCES users(id) ON DELETE CASCADE,
     login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     login_exit_time TIMESTAMP DEFAULT NULL,
-    status VARCHAR(20) DEFAULT 'success' ex: success, failed
+    status VARCHAR(20) DEFAULT 'success' -- ex: success, failed
 );
 
 4 - Comandos (commands)
