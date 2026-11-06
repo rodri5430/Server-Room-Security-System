@@ -34,6 +34,31 @@ SERVER_ERROR = 500
 #GET     /api/access-logs        Consultar o histórico de entradas
 #GET     /api/alerts            Consultar os alertas registados
 
+@app.route('/api/test-db', methods=['GET'])
+def test_db():
+
+    try:
+        conn = db.get_connection()
+
+        cursor = conn.cursor()
+        cursor.execute("SELECT version();")
+
+        resultado = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            "status": "success",
+            "message": "Ligação à base de dados estabelecida!",
+            "database": resultado[0]
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 #PAGINA ENTRADA
 @app.route('/', methods = ["GET"])
