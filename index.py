@@ -37,7 +37,7 @@ SERVER_ERROR = 500
 #PAGINA ENTRADA
 @app.route('/', methods = ["GET"])
 def home():
-   return "O Porto é merda"
+   return "O Benfica é merda"
 
 #LOGIN  
 @app.route('/api/door/unlock', methods=['POST'])
