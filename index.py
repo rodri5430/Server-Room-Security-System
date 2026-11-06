@@ -79,7 +79,7 @@ def register():
     if db.user_exists(data['email']):
         return jsonify({"error": "user already exists"}), BAD_REQUEST_CODE
        
-    user_id = db.add_user(data['username'], data['email'], data['password'])
+    user_id = db.add_user(data['username'], data['email'], data['password'], data["nif"])
 
     if isinstance(user_id, int):
         return jsonify({"message": "User created", "id": user_id}), SUCCESS_CODE
