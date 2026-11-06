@@ -27,7 +27,7 @@ def add_user(nome, email, password, nif):
         ).decode('utf-8')
 
         cursor.execute(
-            "CALL tam.adicionar_user(%s, %s, %s, %s)",
+            "CALL tam.adiciona_user(%s, %s, %s, %s)",
             (nome, email, password_hash, nif)
         )
 
