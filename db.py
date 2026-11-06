@@ -14,4 +14,35 @@ def get_connection():
     )
 
 def add_user(nome, email, password, nif):
-    return adiciona_user(nome, email, password, nif)
+     conn = None
+    cursor = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        password_hash = bcrypt.hashpw(
+            password.encode('utf-8'),
+            bcrypt.gensalt()
+        ).decode('utf-8')
+
+        cursor.execute(
+            "CALL tam.adicionar_user(%s, %s, %s, %s)",
+            (nome, email, password_hash, nif)
+        )
+
+        conn.commit()
+        return True
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("Erro ao adicionar utilizador:", repr(e))
+        return None
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
