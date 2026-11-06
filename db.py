@@ -12,3 +12,6 @@ def get_connection():
         user=os.getenv('DATABASE_USER'),
         password=os.getenv('DATABASE_PASSWORD')
     )
+
+def add_user(nome, email, password, nif):
+    return adiciona_user(nome, email, password, nif)
