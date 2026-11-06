@@ -70,20 +70,32 @@ def login():
 #REGISTER
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
-    if not data or "email" not in data or "password" not in data:
+    if not data or not all(
+        campo in data
+        for campo in ['username', 'email', 'password', 'nif']
+    ):
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
     if db.user_exists(data['email']):
         return jsonify({"error": "user already exists"}), BAD_REQUEST_CODE
-       
-    user_id = db.add_user(data['username'], data['email'], data['password'], data["nif"])
 
-    if isinstance(user_id, int):
-        return jsonify({"message": "User created", "id": user_id}), SUCCESS_CODE
-    else:
-        return jsonify({"error": "Registration failed", "details": user_id}), BAD_REQUEST_CODE
+    resultado = db.add_user(
+        data['username'],
+        data['email'],
+        data['password'],
+        data['nif']
+    )
+
+    if resultado is True:
+        return jsonify({
+            "message": "User created"
+        }), SUCCESS_CODE
+
+    return jsonify({
+        "error": "Registration failed"
+    }), 500
 
 #ADICIONAR LEITURA SENSOR TMP
 
