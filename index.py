@@ -69,7 +69,6 @@ def login():
 
 #REGISTER
 @app.route('/api/auth/register', methods=['POST'])
-@app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json(silent=True)
 
