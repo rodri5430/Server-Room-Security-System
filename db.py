@@ -1,0 +1,185 @@
+import json
+import os
+import bcrypt
+import psycopg2
+from re import I
+
+import psycopg2
+def get_connection():
+    return psycopg2.connect(
+        host=os.getenv('DATABASE_HOST'),
+        database=os.getenv('DATABASE_NAME'),
+        user=os.getenv('DATABASE_USER'),
+        password=os.getenv('DATABASE_PASSWORD')
+    )
+
+def user_exists(username):
+    conn = None
+    count = 0 
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM Utilizadores WHERE Nome= %s", [username])
+            count = cur.fetchone()[0]
+            return count > 0
+    except (Exception, psycopg2.Error) as error:
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def login(nome, password):
+    conn = None
+    user = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT UtilizadorID, Nome, PasswordHash FROM Utilizadores WHERE Nome = %s", [nome])
+            user_tuple = cur.fetchone()
+
+            if user_tuple:
+                user_id, db_nome, hashed_password = user_tuple
+
+                if bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8')): 
+                    user = {"id": user_id, "nome": db_nome}
+                else:
+                    print("DEBUG: Password incorreta para o utilizador", nome)
+            else:
+                print("DEBUG: Utilizador não encontrado:", nome)
+    
+    except (Exception, psycopg2.Error) as error:
+        return str(error)
+    finally:
+        if conn: conn.close()
+    return user
+
+
+#https://www.geeksforgeeks.org/python/hashing-passwords-in-python-with-bcrypt/
+def add_user(username, passwordText, email):
+    conn = None
+    # Hashing 
+    password_bytes = passwordText.encode('utf-8')
+    salt = bcrypt.gensalt()
+    passwordHashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+    
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+            "INSERT INTO utilizadores (nome, passwordhash, email) VALUES (%s, %s, %s) RETURNING utilizadorid", 
+            (username, passwordHashed, email)
+            )
+            conn.commit()
+            user_id = cur.fetchone()[0]
+            # Se chegou aqui, retornamos o ID
+            return user_id
+            
+    except (Exception, psycopg2.Error) as error:
+        if conn:
+            conn.rollback()
+        return str(e)
+        
+    finally:
+        if conn is not None:
+            conn.close()
+            
+            
+def add_reading(contador_id, kwh_valor, dados_audit):
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO Leituras (ContadorID, DataHora, KWh_Leitura, DadosAudit)  VALUES (%s, CURRENT_TIMESTAMP, %s, %s)", (contador_id, kwh_valor, json.dumps(dados_audit)))
+            conn.commit()
+            return True
+    except (Exception, psycopg2.Error) as error:
+        if conn:
+            conn.rollback()
+            
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def get_anomalies():
+    conn = None
+    resultado = []
+    
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            query = """
+                SELECT LeituraID, ContadorID, DataHora, KWh_Leitura, DadosAudit 
+                FROM Leituras 
+                WHERE (DadosAudit ? 'temperatura' AND (DadosAudit->>'temperatura')::NUMERIC > 80) OR 
+                   (DadosAudit ? 'erro_codigo' AND DadosAudit->>'erro_codigo' IS NOT NULL)
+                ORDER BY DataHora DESC
+            """
+            cur.execute(query)
+            resultado = cur.fetchall()
+            
+    except (Exception, psycopg2.Error) as error:
+        return False
+        
+    finally:
+        if conn is not None:
+            conn.close()
+            
+    return resultado
+
+def execute_buy(comprador_id, oferta_id):
+    conn = None 
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("CALL sp_ExecutarCompraDireta(%s, %s)", (oferta_id, comprador_id))
+            conn.commit()
+            return True
+            
+    except (Exception, psycopg2.Error) as error:
+        if conn:
+            conn.rollback()
+        return False
+        
+    finally:
+        if conn:
+            conn.close()
+
+def execute_create_order(comprador_id, quantidade, preco_max):
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO OrdensCompra (CompradorID, QuantidadeKWh, PrecoMaximo, Estado) VALUES (%s, %s, %s, 'PENDENTE')", 
+                (comprador_id, quantidade, preco_max)
+            )
+            conn.commit()
+            return True
+            
+    except (Exception, psycopg2.Error) as error:
+        if conn:
+            conn.rollback()
+       
+        return False
+        
+    finally:
+        if conn:
+            conn.close()
+
+def execute_matching_engine():
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("CALL sp_MatchingEngine()")
+            conn.commit()
+            return True
+    except (Exception, psycopg2.Error) as error:
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
