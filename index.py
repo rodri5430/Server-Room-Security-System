@@ -78,9 +78,6 @@ def register():
     ):
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
-    if db.user_exists(data['email']):
-        return jsonify({"error": "user already exists"}), BAD_REQUEST_CODE
-
     resultado = db.add_user(
         data['username'],
         data['email'],
