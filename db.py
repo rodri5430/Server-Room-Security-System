@@ -28,7 +28,7 @@ def add_user(nome, email, password, nif):
 
         cursor.execute(
             "CALL tam.adiciona_user(%s, %s, %s, %s)",
-            (nome, email, password_hash, nif)
+            (nome, email, nif, password)
         )
 
         conn.commit()
@@ -39,7 +39,7 @@ def add_user(nome, email, password, nif):
             conn.rollback()
 
         print("Erro ao adicionar utilizador:", repr(e))
-        return None
+        return False
 
     finally:
         if cursor:
