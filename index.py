@@ -38,35 +38,7 @@ SERVER_ERROR = 500
 @app.route('/', methods = ["GET"])
 def home():
    return "Bem-Vindo à Sala de Servidores da ESTGOH"
-
-#LOGIN  
-@app.route('/api/door/unlock', methods=['POST'])
-def login():
-    data = request.get_json()
-    
    
-    if not data or "email" not in data or "password" not in data:
-        return jsonify({"error": "Parâmetros inválidos"}), BAD_REQUEST_CODE
-
-    user = db.adiciona_log(data['email'], data["password"])
-
-       
-    if isinstance(user, str):
-        return jsonify({"error": "Erro interno", "details": user}), SERVER_ERROR
-
-    
-    if user is None:
-        return jsonify({"error": "Credenciais incorretas"}), BAD_REQUEST_CODE
-
-    
-    token = jwt.encode({
-        'user_id': user['id'],  
-        'exp': datetime.now(timezone.utc) + timedelta(minutes=30)   #Tem que se particionar por dia na tabela
-    }, app.config['SECRET_KEY'], algorithm='HS256')
-
-    user["token"] = token
-    return jsonify(user), SUCCESS_CODE
-
 #REGISTER
 @app.route('/api/auth/register', methods=['POST'])
 def register():
@@ -79,11 +51,6 @@ def register():
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
     try:
-        if db.user_exists(data['email']):
-            return jsonify({
-                "error": "user already exists"
-            }), BAD_REQUEST_CODE
-
         resultado = db.add_user(
             data['username'],
             data['email'],
@@ -105,20 +72,3 @@ def register():
         return jsonify({
             "error": "Internal server error"
         }), 500
-
-#ADICIONAR LEITURA SENSOR TMP
-
-@app.route('/api/telemetry', methods=['POST'])
-
-def registar_leitura_tmp():
-
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error: no parameters received"}), 400
-
-    temperatura_adicionada = db.adiciona_leitura_tmp(data["temperature_value"]) #Aqui a db.py deve receber temp value e chamar a funcao para adicionar a temperatura. Essa função deve guardar o valor na bd.
-
-
-
-    
