@@ -65,10 +65,6 @@ def register():
                 "message": "utilizador adicionado com sucesso"
             }), SUCCESS_CODE
 
-        return jsonify({
-            "error": "Email ou NIF já registado"
-        }), 409
-
     except Exception as e:
         print("Erro no registo:", repr(e))
         return jsonify({
