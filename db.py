@@ -101,17 +101,13 @@ def adiciona_logs(email, password):
 
     except Exception as e:
 
-        if conn:
-            conn.rollback()
+        except Exception as e:
+    if conn:
+        conn.rollback()
 
-        print("ERRO NO LOGIN:", e)
+    print("ERRO NO LOGIN:", repr(e))
 
-        return {
-            "sucesso": False,
-            "user_id": None,
-            "user_nome": None,
-            "mensagem": "Erro ao iniciar sessão"
-        }
+    return None
 
     finally:
         if conn:
