@@ -25,7 +25,7 @@ def add_user(nome, email, password, nif):
         salt = bcrypt.gensalt()
         passwordHashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
-        cursor.execute("SELECT tam.adiciona_user(%s, %s, %s, %s)", (nif, nome, email, passwordHashed))
+        cursor.execute("SELECT tam.fn_register_user(%s, %s, %s, %s)", (nif, nome, email, passwordHashed))
         resultadoAdicionaUser = cursor.fetchone()[0]
 
         conn.commit()
