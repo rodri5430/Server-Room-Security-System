@@ -58,14 +58,15 @@ def register():
             data['nif']
         )
 
-        if resultado is True:
+        if resultado:
             return jsonify({
-                "message": "User created"
+                "message": resultado
             }), SUCCESS_CODE
 
-        return jsonify({
+        else:
+            return jsonify({
             "error": "Registration failed"
-        }), 500
+            }), 500
 
     except Exception as e:
         print("Erro no registo:", repr(e))
