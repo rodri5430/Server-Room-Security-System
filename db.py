@@ -56,35 +56,63 @@ def add_user(nome, email, password, nif):
 def adiciona_logs(email, password):
 
     conn = None
+
     try:
-        # Hashing da password
-        password_bytes = password.encode('utf-8')
-        salt = bcrypt.gensalt()
-        passwordHashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
-
         conn = get_connection()
-
         cursor = conn.cursor()
 
-        cursor.execute("SELECT * tam.fn_validacao_e_acesso_log(%s, %s)", (email, passwordHashed)) #Como retorna Tabela tem que se selecionar tudo, senão vai retornar apenas uma linha 
+        # Procurar utilizador pelo email
+        cursor.execute("SELECT id_utilizador, nome, password FROM tam.users WHERE email = %s", (email))
 
-        sucesso, user_id, user_nome, mensagem = cursor.fetchone()
+        resultado = cursor.fetchone()
 
+        if resultado is None:
+            return {
+                "sucesso": False,
+                "user_id": None,
+                "user_nome": None,
+                "mensagem": "Utilizador não encontrado"
+            }
+
+        user_id, user_nome, password_hash = resultado
+
+        # Verificar password
+        sucesso = bcrypt.checkpw(
+            password.encode('utf-8'),
+            password_hash.encode('utf-8')
+        )
+
+        if not sucesso:
+            return {
+                "sucesso": False,
+                "user_id": None,
+                "user_nome": None,
+                "mensagem": "Password incorreta"
+            }
 
         conn.commit()
 
         return {
-            "sucesso": sucesso,
+            "sucesso": True,
             "user_id": user_id,
             "user_nome": user_nome,
-            "mensagem": mensagem
+            "mensagem": "Login efetuado com sucesso"
         }
 
     except Exception as e:
+
         if conn:
             conn.rollback()
 
-        return None
+        print("ERRO NO LOGIN:", e)
+
+        return {
+            "sucesso": False,
+            "user_id": None,
+            "user_nome": None,
+            "mensagem": "Erro ao iniciar sessão"
+        }
+
     finally:
         if conn:
             conn.close()
