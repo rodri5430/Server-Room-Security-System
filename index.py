@@ -71,27 +71,22 @@ def register():
 
 
 #Adicionar Log
-@app.route('api/logs/', methods=['POST'])
-
+@app.route('/api/logs/', methods=['POST'])
 def adicionar_log():
+
     data = request.get_json()
 
-    if not data.get("email") or not data.get("password_hash"):
-        return jsonify({"error": "falta de dados obrigatórios"}), 400
+    if not data or not data.get("email") or not data.get("password"):
+        return jsonify({"error": "Falta de dados obrigatórios"}), 400
 
-    resultado = db.adiciona_logs(data["email"], data["password_hash"])
+    resultado = db.adiciona_logs(data["email"], data["password"])
 
     if resultado is None:
-        return jsonify({"error": "Erro interno ao registar log"}), 500
+        return jsonify({"error": "Erro interno ao iniciar sessão"}), 500
 
     if not resultado["sucesso"]:
         return jsonify({"error": resultado["mensagem"]}), 401
 
-    return jsonify({
-        "status": "ok",
-        "user_id": resultado["user_id"],
-        "user_nome": resultado["user_nome"],
-        "mensagem": resultado["mensagem"]
-    }), 200
+    return jsonify(resultado), 200
 
     
