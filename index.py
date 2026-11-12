@@ -60,14 +60,20 @@ def register():
             data['nif']
         )
 
-        if resultado is True:
+        if resultado == 'SUCESSO':
             return jsonify({
-                "message": "utilizador adicionado com sucesso"
-            }), SUCCESS_CODE
+            "message": "utilizador adicionado com sucesso"
+            }), 201
 
-        return jsonify({
-            "error": "Email ou NIF já registado"
-        }), 409
+        elif resultado == 'EMAIL_EXISTE':
+            return jsonify({
+                "error": "Email já registado"
+            }), 409
+
+        elif resultado == 'NIF_EXISTE':
+            return jsonify({
+                "error": "NIF já registado"
+            }), 409
 
     except Exception as e:
         print("Erro no registo:", repr(e))
