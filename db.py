@@ -2,6 +2,11 @@ import os
 import bcrypt
 import psycopg2
 
+'''Adicionar user
+   Adicionar log
+   Adicionar valor TMP
+'''
+
 def get_connection():
     return psycopg2.connect(
         host=os.getenv('DATABASE_HOST'),
@@ -9,8 +14,6 @@ def get_connection():
         user=os.getenv('DATABASE_USER'),
         password=os.getenv('DATABASE_PASSWORD')
     )
-
-
 
 #MÉTODOS ADICIONAR À BD
 
@@ -115,3 +118,39 @@ def adiciona_logs(email, password):
     finally:
         if conn:
             conn.close()
+
+#listar utilizadores
+
+def lista_users():
+
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM tam.fn_get_users()")
+
+        resultado = cursor.fetchall()
+
+        utilizadores = []
+
+
+        for row in resultado:
+            utilizadores.append({
+                "id": row[0],
+                "nome": row[1],
+                "email": row[2]
+            })
+
+        return utilizadores
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return False
+    
+    finally:
+        if conn:
+            conn.close()
+
+        
