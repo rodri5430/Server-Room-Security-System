@@ -57,8 +57,7 @@ def register():
             data['nif'],
             data['name'],
             data['email'],
-            data['password'],
-            data['pin_code']
+            data['password']
         )
 
         if resultado is True:
