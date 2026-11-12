@@ -53,6 +53,7 @@ def add_user(nome, email, password, nif):
 
 #Adicionar Logs NÃO TEM FUNÇÃO NA BASE DE DADOS 
 
+
 def adiciona_logs(email, password):
 
     conn = None
@@ -61,51 +62,54 @@ def adiciona_logs(email, password):
         conn = get_connection()
         cursor = conn.cursor()
 
-        # Procurar utilizador pelo email
-        cursor.execute("SELECT id_utilizador, nome, password FROM tam.users WHERE email = %s", (email))
+        cursor.execute("""
+            SELECT password_hash
+            FROM tam.users
+            WHERE email = %s
+        """, (email,))
 
         resultado = cursor.fetchone()
 
         if resultado is None:
-            return {
-                "sucesso": False,
-                "user_id": None,
-                "user_nome": None,
-                "mensagem": "Utilizador não encontrado"
-            }
+            # Email inexistente: registar tentativa falhada
+            cursor.execute("""
+                SELECT * FROM tam.fn_validacao_e_acesso_log(%s, %s)
+            """, (email, ""))
 
-        user_id, user_nome, password_hash = resultado
+        else:
+            password_hash = resultado[0]
 
-        # Verificar password
-        sucesso = bcrypt.checkpw(
-            password.encode('utf-8'),
-            password_hash.encode('utf-8')
-        )
+            if bcrypt.checkpw(
+                password.encode('utf-8'),
+                password_hash.encode('utf-8')
+            ): #Se password hashed for igual então adiciona na tabela logs 
 
-        if not sucesso:
-            return {
-                "sucesso": False,
-                "user_id": None,
-                "user_nome": None,
-                "mensagem": "Password incorreta"
-            }
+                cursor.execute("""
+                    SELECT * FROM tam.fn_validacao_e_acesso_log(%s, %s)
+                """, (email, password_hash))
+
+            else:
+               
+                cursor.execute("""
+                    SELECT * FROM tam.fn_validacao_e_acesso_log(%s, %s)
+                """, (email, ""))
+
+        sucesso, user_id, user_nome, mensagem = cursor.fetchone()
 
         conn.commit()
 
         return {
-            "sucesso": True,
+            "sucesso": sucesso,
             "user_id": user_id,
             "user_nome": user_nome,
-            "mensagem": "Login efetuado com sucesso"
+            "mensagem": mensagem
         }
 
     except Exception as e:
-
         if conn:
             conn.rollback()
 
         print("ERRO NO LOGIN:", repr(e))
-
         return None
 
     finally:
