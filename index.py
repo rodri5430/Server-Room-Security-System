@@ -46,13 +46,13 @@ def register():
 
     if not data or not all(
         campo in data and data[campo]
-        for campo in ['username', 'email', 'password', 'nif']
+        for campo in ['name', 'email', 'password', 'nif']
     ):
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
     try:
         resultado = db.add_user(
-            data['username'],
+            data['name'],
             data['email'],
             data['password'],
             data['nif']
@@ -60,13 +60,12 @@ def register():
 
         if resultado:
             return jsonify({
-                "message": resultado
+                "message": "utilizador adicionado com sucesso"
             }), SUCCESS_CODE
-
-        else:
-            return jsonify({
-            "error": "Registration failed"
-            }), 500
+           
+         return jsonify({
+         "error": "Registration failed"
+         }), 500
 
     except Exception as e:
         print("Erro no registo:", repr(e))
