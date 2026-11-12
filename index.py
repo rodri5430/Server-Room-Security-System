@@ -48,7 +48,7 @@ def register():
 
     if not data or not all(
         campo in data and data[campo]
-        for campo in ['name', 'email', 'password', 'nif', 'pin_code']
+        for campo in ['name', 'email', 'password', 'nif']
     ):
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
