@@ -40,35 +40,38 @@ def home():
    return "Bem-Vindo à Sala de Servidores da ESTGOH"
    
 #REGISTER
+
+# REGISTER
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json(silent=True)
 
     if not data or not all(
         campo in data and data[campo]
-        for campo in ['name', 'email', 'password', 'nif']
+        for campo in ['name', 'email', 'password', 'nif', 'pin_code']
     ):
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
     try:
         resultado = db.add_user(
+            data['nif'],
             data['name'],
             data['email'],
             data['password'],
-            data['nif']
+            data['pin_code']
         )
 
-        if resultado:
+        if resultado is True:
             return jsonify({
                 "message": "utilizador adicionado com sucesso"
             }), SUCCESS_CODE
-           
-         return jsonify({
-         "error": "Registration failed"
-         }), 500
+
+        return jsonify({
+            "error": "Email ou NIF já registado"
+        }), 409
 
     except Exception as e:
         print("Erro no registo:", repr(e))
         return jsonify({
             "error": "Internal server error"
-        }), 500
+        }), SERVER_ERROR
