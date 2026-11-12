@@ -2,4 +2,3 @@ Flask
 PyJWT
 psycopg2-binary
 bcrypt
-python-dotenv
