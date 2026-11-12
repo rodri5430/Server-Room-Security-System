@@ -1,10 +1,10 @@
-import json
 import os
 import bcrypt
 import psycopg2
-from re import I
+from dotenv import load_dotenv
 
-import psycopg2
+load_dotenv()
+
 def get_connection():
     return psycopg2.connect(
         host=os.getenv('DATABASE_HOST'),
