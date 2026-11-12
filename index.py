@@ -20,19 +20,6 @@ FORBIDDEN_CODE = 403
 NOT_FOUND = 404
 SERVER_ERROR = 500
 
-#POST     /api/door/unlock       Validar a palavra-passe e solicitar abertura da porta
-#GET     /api/fan/status        Consultar o estado da ventoinha
-#POST     /api/fan/control        Ligar ou desligar a ventoinha manualmente
-#POST     /api/fan/mode            Selecionar modo automático ou manual
-#POST     /api/alarm/activate         Ativar o alarme
-#POST     /api/alarm/deactivate        Desativar o alarme
-#GET     /api/alarm/status        Consultar o estado e os detalhes do alarme
-#GET     /api/telemetry/latest        Obter a última leitura dos sensores
-#GET     /api/telemetry/history        Consultar o histórico dos sensores
-#GET     /api/devices/commands/pending    O ESP32 consulta comandos pendentes
-#POST     /api/devices/commands/ack    O ESP32 confirma a execução dos comandos
-#GET     /api/access-logs        Consultar o histórico de entradas
-#GET     /api/alerts            Consultar os alertas registados
 
 #PAGINA ENTRADA
 @app.route('/', methods = ["GET"])
@@ -42,7 +29,7 @@ def home():
 #REGISTER
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    data = request.get_json(silent=True)
+    data = request.get_json()
 
     if not data or not all(
         campo in data and data[campo]
@@ -83,12 +70,28 @@ def register():
         }), SERVER_ERROR
 
 
-#TESTE DE LIGAÇÃO À BD
-@app.route('/api/test-db', methods=['GET'])
-def test_db():
-    ok, mensagem = db.testaLigacao()
+#Adicionar Log
+@app.route('api/logs/', methods=['POST'])
 
-    if ok:
-        return jsonify({"status": "ok", "message": mensagem}), OK_CODE
+def adicionar_log():
+    data = request.get_json()
 
-    return jsonify({"status": "erro", "message": mensagem}), SERVER_ERROR
+    if not data.get("email") or not data.get("password_hash"):
+        return jsonify({"error": "falta de dados obrigatórios"}), 400
+
+    resultado = db.adiciona_logs(data["email"], data["password_hash"])
+
+    if resultado is None:
+        return jsonify({"error": "Erro interno ao registar log"}), 500
+
+    if not resultado["sucesso"]:
+        return jsonify({"error": resultado["mensagem"]}), 401
+
+    return jsonify({
+        "status": "ok",
+        "user_id": resultado["user_id"],
+        "user_nome": resultado["user_nome"],
+        "mensagem": resultado["mensagem"]
+    }), 200
+
+    
