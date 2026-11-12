@@ -81,3 +81,14 @@ def register():
         return jsonify({
             "error": "Internal server error"
         }), SERVER_ERROR
+
+
+#TESTE DE LIGAÇÃO À BD
+@app.route('/api/test-db', methods=['GET'])
+def test_db():
+    ok, mensagem = db.testaLigacao()
+
+    if ok:
+        return jsonify({"status": "ok", "message": mensagem}), OK_CODE
+
+    return jsonify({"status": "erro", "message": mensagem}), SERVER_ERROR
