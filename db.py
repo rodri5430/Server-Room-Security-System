@@ -27,16 +27,14 @@ def add_user(nome, email, password, nif):
 
         cursor.execute(
         "SELECT tam.fn_register_user(%s, %s, %s, %s)",
-        (nif, nome, email, passwordHashed)    
+        (nif, nome, email, passwordHashed)
         )
-
+    
         resultadoAdicionaUser = cursor.fetchone()[0]
 
-        print("RESULTADO SQL:", repr(resultadoAdicionaUser))
-        print("TIPO:", type(resultadoAdicionaUser))
+        print("RESULTADO:", resultadoAdicionaUser)
 
         conn.commit()
-        cursor.close()
 
         return resultadoAdicionaUser
 
