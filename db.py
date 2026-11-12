@@ -12,7 +12,22 @@ def get_connection():
         user=os.getenv('DATABASE_USER'),
         password=os.getenv('DATABASE_PASSWORD')
     )
-
+    
+def testaLigacao():
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        return True, "LIGAÇÃO OK"
+    except Exception as e:
+        print("ERRO DE LIGAÇÃO:", repr(e))
+        return False, repr(e)
+    finally:
+        if conn:
+            conn.close()
+            
 def add_user(nome, email, password, nif):
     conn = None
 
