@@ -1,9 +1,6 @@
 import os
 import bcrypt
 import psycopg2
-from dotenv import load_dotenv
-
-load_dotenv()
 
 def get_connection():
     return psycopg2.connect(
@@ -12,22 +9,12 @@ def get_connection():
         user=os.getenv('DATABASE_USER'),
         password=os.getenv('DATABASE_PASSWORD')
     )
-    
-def testaLigacao():
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-        return True, "LIGAÇÃO OK"
-    except Exception as e:
-        print("ERRO DE LIGAÇÃO:", repr(e))
-        return False, repr(e)
-    finally:
-        if conn:
-            conn.close()
-            
+
+
+
+#MÉTODOS ADICIONAR À BD
+
+#Adicionar Utilizador à aplicação
 def add_user(nome, email, password, nif):
     conn = None
 
@@ -60,6 +47,44 @@ def add_user(nome, email, password, nif):
         print("ERRO: Erro ao adicionar Utilizador")
         return False
 
+    finally:
+        if conn:
+            conn.close()
+
+#Adicionar Logs NÃO TEM FUNÇÃO NA BASE DE DADOS 
+
+def adiciona_logs(email, password):
+
+    conn = None
+    try:
+        # Hashing da password
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        passwordHashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+
+        conn = get_connection()
+
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * tam.fn_validacao_e_acesso_log(%s, %s)", (email, passwordHashed)) #Como retorna Tabela tem que se selecionar tudo, senão vai retornar apenas uma linha 
+
+        sucesso, user_id, user_nome, mensagem = cursor.fetchone()
+
+
+        conn.commit()
+
+        return {
+            "sucesso": sucesso,
+            "user_id": user_id,
+            "user_nome": user_nome,
+            "mensagem": mensagem
+        }
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        return None
     finally:
         if conn:
             conn.close()
