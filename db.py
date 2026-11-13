@@ -235,7 +235,7 @@ def remover_utilizador(id):
     finally:
         if conn:
             conn.close()
-
+           
 #listar logs
 def lista_logs():
     conn = None
@@ -249,13 +249,13 @@ def lista_logs():
         
         utilizadores = []
         
-        
         for row in resultado:
             utilizadores.append({
-                "id": row[0],
-                "id_user": row[1],
-                "login_time": row[2],
-                "success": row[3]
+                "log_id": row[0],
+                "utilizador_nome": row[1],
+                "utilizador_email": row[2],
+                "login_time": row[3],
+                "status": row[4]
             })
 
         return utilizadores
