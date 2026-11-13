@@ -167,7 +167,16 @@ def obter_user_id(user_id):
         if resultado is None:
             return None
 
-        return resultado
+        utilizador = []
+        
+        
+        for row in resultado:
+            utilizador.append({
+                "email": row[0],
+                "nif": row[1]
+            })
+
+        return utilizador
     
     except Exception as e:
         print("ERRO NO LOGIN:", repr(e))
@@ -176,4 +185,3 @@ def obter_user_id(user_id):
     finally:
         if conn:
             conn.close()
-        
