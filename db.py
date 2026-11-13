@@ -153,4 +153,27 @@ def lista_users():
         if conn:
             conn.close()
 
+def obter_user_id(user_id):
+
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tam.fn_user_search_id(%s)', (user_id,))
+
+        resultado = cursor.fetchone()[0]
+
+        if resultado is None:
+            return None
+
+        return resultado
+    
+    except Exception as e:
+        print("ERRO NO LOGIN:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
         
