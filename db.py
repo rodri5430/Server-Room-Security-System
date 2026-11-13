@@ -176,3 +176,30 @@ def obter_user_id(user_id):
     finally:
         if conn:
             conn.close()
+
+def atualiza_user(nome, email, password, nif):
+
+    conn = None
+
+    try:
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tam.fn_atualiza_user(%s, %s, %s, %s, %s)', (id, nome, email, password, nif))
+
+
+        resultado = cursor.fetchone()[0]
+
+        conn.commit()
+
+        return resultado
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO ATUALIZAR UTILIZADOR:", repr(e))
+        return False
+    finally:
+        if conn:
