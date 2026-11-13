@@ -173,3 +173,18 @@ def atualizar_utilizador(id):
         return jsonify({"error": "Utilizador não encontrado"}), 404
 
     return jsonify({"mensagem": "Utilizador atualizado com sucesso"}), 200
+
+
+#Remover utilizador
+
+@app.route('/api/users/<id>', methods=['DELETE'])
+
+def remover_utilizador(id):
+
+    resultado = db.remover_utilizador(id)
+
+    if not resultado:
+        return jsonify({"mensagem": "Utilizador não encontrado"}), 404
+
+
+    return jsonify({"mensagem": "Utilizador Removido com Sucesso"}), 200
