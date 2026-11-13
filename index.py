@@ -148,5 +148,4 @@ def listar_user_id(id):
     if resultado is None:
         jsonify({"Erro": "Utilizador não encontrado"})
 
-
     return jsonify(resultado), 200
