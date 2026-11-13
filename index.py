@@ -151,7 +151,7 @@ def listar_user_id(id):
     return jsonify(resultado), 200
 
 #atualizar utilizador
-@app.route('/api/users/<id>', methods=['GET'])
+@app.route('/api/users/<id>', methods=['PUT'])
 def atualizar_utilizador(id):
 
     data = request.get_json()
