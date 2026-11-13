@@ -243,7 +243,7 @@ def lista_logs():
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT tam.fn_get_access_logs()')
+        cursor.execute('SELECT * FROM tam.fn_get_access_logs()')
 
         resultado = cursor.fetchall()
         
