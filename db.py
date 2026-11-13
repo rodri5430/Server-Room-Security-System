@@ -203,3 +203,4 @@ def atualiza_user(nome, email, password, nif):
         return False
     finally:
         if conn:
+           conn.close()
