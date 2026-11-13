@@ -235,3 +235,35 @@ def remover_utilizador(id):
     finally:
         if conn:
             conn.close()
+
+#listar logs
+def lista_logs():
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tam.fn_get_access_logs()')
+
+        resultado = cursor.fetchall()
+        
+        utilizadores = []
+        
+        
+        for row in resultado:
+            utilizadores.append({
+                "id": row[0],
+                "id_user": row[1],
+                "login_time": row[2],
+                "success": row[3]
+            })
+
+        return utilizadores
+    
+    except Exception as e:
+        print("ERRO NO LOGIN:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
