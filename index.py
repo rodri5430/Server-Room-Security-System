@@ -184,7 +184,7 @@ def remover_utilizador(id):
     if not resultado:
         return jsonify({"mensagem": "Utilizador não encontrado"}), 404
 
-   return jsonify({"mensagem": "Utilizador Removido com Sucesso"}), 200
+    return jsonify({"mensagem": "Utilizador Removido com Sucesso"}), 200
 
 #Listar Logs
 @app.route('/api/logs', methods=['GET'])
