@@ -10,13 +10,13 @@ import db
 AUTH / USERS
 [x] Adicionar user                      POST   /api/auth/register
 [x] Login + registo do log              POST   /api/auth/login
-[ ] Listar users                        GET    /api/users
-[ ] Obter user por id                   GET    /api/users/<id>
-[ ] Atualizar user                      PUT    /api/users/<id>
-[ ] Desativar/remover user              DELETE /api/users/<id>
+[x] Listar users                        GET    /api/users
+[x] Obter user por id                   GET    /api/users/<id>
+[x] Atualizar user                      PUT    /api/users/<id>
+[x] Desativar/remover user              DELETE /api/users/<id>
 
 ACCESS LOGS (só consulta, o registo é feito no login)
-[ ] Listar logs (filtro status/limit)   GET    /api/logs
+[ ] Listar logs                         GET    /api/logs
 [ ] Logs de um user                     GET    /api/users/<id>/logs
 
 DEVICES
@@ -27,7 +27,7 @@ DEVICES
 [ ] Remover device                      DELETE /api/devices/<id>
 
 TEMP READINGS (TMP)
-[x] Adicionar valor TMP                 POST   /api/temp_readings
+[ ] Adicionar valor TMP                 POST   /api/temp_readings
 [ ] Listar leituras (limit)             GET    /api/temp_readings
 [ ] Última leitura de um device         GET    /api/devices/<id>/temp_readings/latest
 [ ] Histórico de um device (de/até)     GET    /api/devices/<id>/temp_readings
@@ -135,7 +135,7 @@ def listar_users():
     resultado = db.lista_users()
 
     if resultado is None:
-        jsonify({"Erro": "Sem utilizadores para listar"})
+        return jsonify({"Erro": "Sem utilizadores para listar"})
     
     return jsonify(resultado), 200
 
@@ -151,7 +151,7 @@ def listar_user_id(id):
     return jsonify(resultado), 200
 
 #atualizar utilizador
-@app.route('/api/users/<int:id>', methods=['PUT'])
+@app.route('/api/users/<id>', methods=['PUT'])
 def atualizar_utilizador(id):
 
     data = request.get_json()
@@ -174,15 +174,17 @@ def atualizar_utilizador(id):
 
     return jsonify({"mensagem": "Utilizador atualizado com sucesso"}), 200
 
-
 #Remover utilizador
 
 @app.route('/api/users/<id>', methods=['DELETE'])
+
 def remover_utilizador(id):
+
     resultado = db.remover_utilizador(id)
 
     if not resultado:
         return jsonify({"mensagem": "Utilizador não encontrado"}), 404
+
 
     return jsonify({"mensagem": "Utilizador Removido com Sucesso"}), 200
 
@@ -190,7 +192,7 @@ def remover_utilizador(id):
 @app.route('/api/logs', methods=['GET'])
 def listar_logs():
     
-    resultado = db.lista_logs()
+    resultado = db.lista_users()
 
     if resultado is None:
         return jsonify({"Erro": "Sem logs para listar"})
