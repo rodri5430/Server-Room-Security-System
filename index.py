@@ -178,7 +178,6 @@ def atualizar_utilizador(id):
 #Remover utilizador
 
 @app.route('/api/users/<id>', methods=['DELETE'])
-
 def remover_utilizador(id):
     resultado = db.remover_utilizador(id)
 
