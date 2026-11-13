@@ -138,3 +138,15 @@ def listar_users():
         jsonify({"Erro": "Sem utilizadores para listar"})
     
     return jsonify(resultado), 200
+
+#listar user por id
+@app.route('/api/users/<id>', methods=['GET'])
+def listar_user_id(id):
+
+    resultado = db.obter_user_id(id)
+
+    if resultado is None:
+        jsonify({"Erro": "Utilizador não encontrado"})
+
+
+    return jsonify(resultado), 200
