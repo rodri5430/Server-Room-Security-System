@@ -192,7 +192,7 @@ def remover_utilizador(id):
 @app.route('/api/logs', methods=['GET'])
 def listar_logs():
     
-    resultado = db.lista_users()
+    resultado = db.lista_logs()
 
     if resultado is None:
         return jsonify({"Erro": "Sem logs para listar"})
