@@ -177,7 +177,7 @@ def obter_user_id(user_id):
         if conn:
             conn.close()
 
-def atualiza_user(id, nome, email, password, nif):
+def atualiza_user(nome, email, password, nif):
 
     conn = None
 
@@ -186,7 +186,12 @@ def atualiza_user(id, nome, email, password, nif):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT tam.fn_atualiza_user(%s, %s, %s, %s, %s)', (id, nome, email, password, nif))
+        # Hashing da password
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        passwordHashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+
+        cursor.execute('SELECT tam.fn_atualiza_user(%s, %s, %s, %s, %s)', (id, nome, email, passwordHashed, nif))
 
 
         resultado = cursor.fetchone()[0]
@@ -203,4 +208,4 @@ def atualiza_user(id, nome, email, password, nif):
         return False
     finally:
         if conn:
-           conn.close()
+            conn.close()
