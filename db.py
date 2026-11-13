@@ -177,7 +177,7 @@ def obter_user_id(user_id):
         if conn:
             conn.close()
 
-def atualiza_user(nome, email, password, nif):
+def atualiza_user(id, nome, email, password, nif):
 
     conn = None
 
