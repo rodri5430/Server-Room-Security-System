@@ -151,22 +151,25 @@ def listar_user_id(id):
     return jsonify(resultado), 200
 
 #atualizar utilizador
-@app.route('/api/users/<id>', methods=['PUT'])
+@app.route('/api/users/<int:id>', methods=['PUT'])
 def atualizar_utilizador(id):
 
     data = request.get_json()
-    
+
     if not data:
-       return jsonify({"error": "Dados em falta"}), 400
+        return jsonify({"error": "Dados em falta"}), 400
 
     nome = data.get("nome")
     email = data.get("email")
+    password = data.get("password")
     nif = data.get("nif")
 
-    resultado = db.atualiza_user(nome, email, nif)
+    if not nome or not email or not password or not nif:
+        return jsonify({"error": "Faltam campos obrigatórios"}), 400
+
+    resultado = db.atualiza_user(id, nome, email, password, nif)
 
     if not resultado:
         return jsonify({"error": "Utilizador não encontrado"}), 404
 
-    return jsonify({"mensagem": "Utilizador atualizado"}), 200
-
+    return jsonify({"mensagem": "Utilizador atualizado com sucesso"}), 200
