@@ -149,3 +149,24 @@ def listar_user_id(id):
         jsonify({"Erro": "Utilizador não encontrado"})
 
     return jsonify(resultado), 200
+
+#atualizar utilizador
+@app.route('/api/users/<id>', methods=['GET'])
+def atualizar_utilizador(id):
+
+    data = request.get_json()
+    
+    if not data:
+       return jsonify({"error": "Dados em falta"}), 400
+
+    nome = data.get("nome")
+    email = data.get("email")
+    nif = data.get("nif")
+
+    resultado = db.atualiza_user(nome, email, nif)
+
+    if not resultado:
+        return jsonify({"error": "Utilizador não encontrado"}), 404
+
+    return jsonify({"mensagem": "Utilizador atualizado"}), 200
+
