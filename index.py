@@ -198,3 +198,24 @@ def listar_logs():
         return jsonify({"Erro": "Sem logs para listar"})
     
     return jsonify(resultado), 200
+
+#Adicionar Dispositivo
+@app.route('/api/devices', methods=['POST'])
+def adicionar_device():
+    data = request.get_json()
+   
+    if not data: 
+        return jsonify({
+            "error": "invalid parameters"
+        }), BAD_REQUEST_CODE
+
+    resultado = db.adiciona_device(data["id"], data["name"], data["modelo"], data["id_alarm_events"])
+
+    if resultado:
+        return jsonify({
+        "message": "device added successfully"
+        }), 201
+    
+    return jsonify({
+        "error": "device could not be added"
+    }), 400
