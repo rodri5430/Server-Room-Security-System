@@ -6,45 +6,6 @@ from flask import Flask, jsonify, request
 import jwt
 import db
 
-'''
-AUTH / USERS
-[x] Adicionar user                      POST   /api/auth/register
-[x] Login + registo do log              POST   /api/auth/login
-[x] Listar users                        GET    /api/users
-[x] Obter user por id                   GET    /api/users/<id>
-[x] Atualizar user                      PUT    /api/users/<id>
-[x] Desativar/remover user              DELETE /api/users/<id>
-
-ACCESS LOGS (só consulta, o registo é feito no login)
-[ ] Listar logs                         GET    /api/logs
-[ ] Logs de um user                     GET    /api/users/<id>/logs
-
-DEVICES
-[ ] Adicionar device                    POST   /api/devices
-[ ] Listar devices                      GET    /api/devices
-[ ] Obter device por id                 GET    /api/devices/<id>
-[ ] Atualizar device                    PUT    /api/devices/<id>
-[ ] Remover device                      DELETE /api/devices/<id>
-
-TEMP READINGS (TMP)
-[ ] Adicionar valor TMP                 POST   /api/temp_readings
-[ ] Listar leituras (limit)             GET    /api/temp_readings
-[ ] Última leitura de um device         GET    /api/devices/<id>/temp_readings/latest
-[ ] Histórico de um device (de/até)     GET    /api/devices/<id>/temp_readings
-
-ALARM EVENTS
-[ ] Listar alarmes                      GET    /api/alarms
-[ ] Alarmes de um device                GET    /api/devices/<id>/alarms
-[ ] Alarmes ativos/não resolvidos       GET    /api/alarms?active=true
-[ ] Marcar alarme como resolvido        PUT    /api/alarms/<id>/resolve
-
-COMMANDS (ativar alarme / ativar ventoinha)
-[ ] Enviar comando (ALARM_ON, FAN_ON)   POST   /api/commands
-[ ] Listar comandos                     GET    /api/commands
-[ ] Comandos pendentes de um device     GET    /api/devices/<id>/commands/pending
-[ ] Marcar comando como executado       PUT    /api/commands/<id>/done
-'''
-
 app = Flask(__name__)
 app.debug = True
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'mysecretkey')
