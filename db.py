@@ -276,8 +276,8 @@ def adiciona_device(id, nome, modelo, id_alarme):
         cursor = conn.cursor()
 
         cursor.execute(
-            'SELECT tam.adiciona_device(%s, %s, %s, %s)',
-            (id, nome, modelo, id_alarme)
+            'SELECT tam.adiciona_device(%s, %s, %s)',
+            (nome, modelo, id_alarme)
         )
 
         resultado = cursor.fetchone()[0]
