@@ -267,3 +267,35 @@ def lista_logs():
     finally:
         if conn:
             conn.close()
+
+def adiciona_device(id, nome, modelo, id_alarme):
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            'SELECT tam.adiciona_device(%s, %s, %s, %s)',
+            (id, nome, modelo, id_alarme)
+        )
+
+        resultado = cursor.fetchone()[0]
+        conn.commit()
+
+        if not resultado:
+            return None
+
+        return resultado
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO ADICIONAR DEVICE:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
