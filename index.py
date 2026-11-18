@@ -161,22 +161,35 @@ def listar_logs():
     return jsonify(resultado), 200
 
 #Adicionar Dispositivo
-@app.route('/api/devices', methods=['POST'])
-def adicionar_device():
-    data = request.get_json()
-   
-    if not data: 
-        return jsonify({
-            "error": "invalid parameters"
-        }), BAD_REQUEST_CODE
+def adiciona_device(id, nome, modelo, id_alarme):
 
-    resultado = db.adiciona_device(data["id"], data["name"], data["modelo"], data["id_alarm_events"])
+    conn = None
 
-    if resultado:
-        return jsonify({
-        "message": "device added successfully"
-        }), 201
-    
-    return jsonify({
-        "error": "device could not be added"
-    }), 400
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            'SELECT tam.adiciona_device(%s, %s, %s, %s)',
+            (id, nome, modelo, id_alarme)
+        )
+
+        resultado = cursor.fetchone()[0]
+        conn.commit()
+
+        if not resultado:
+            return None
+
+        return resultado
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO ADICIONAR DEVICE:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
