@@ -171,7 +171,7 @@ def adicionar_device():
             "error": "invalid parameters"
         }), BAD_REQUEST_CODE
 
-    resultado = db.adiciona_device(data["id"], data["name"], data["modelo"], data["id_alarm_events"])
+    resultado = db.adiciona_device(data["name"], data["modelo"], data["id_alarm_events"])
 
     if resultado:
         return jsonify({
