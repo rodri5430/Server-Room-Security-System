@@ -244,9 +244,14 @@ def listar_devices():
 @app.route('/api/devices/<id>', methods=['GET'])
 def listar_devices_id(id):
 
-    resultado = db.obter_device_id(id)
-   
-    if resultado is None:
-        return jsonify({"Erro": "Device Inexistente"})
-    
-    return jsonify(resultado), 200
+    try:
+        resultado = db.obter_device_id(id)
+
+        if resultado is None:
+            return jsonify({"Erro": "Device Inexistente"}), 404
+
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        print("ERRO NA ROTA DEVICE:", repr(e))
+        return jsonify({"Erro": "Erro interno do servidor"}), 500
