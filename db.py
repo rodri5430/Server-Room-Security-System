@@ -2,11 +2,6 @@ import os
 import bcrypt
 import psycopg2
 
-'''Adicionar user
-   Adicionar log
-   Adicionar valor TMP
-'''
-
 def get_connection():
     return psycopg2.connect(
         host=os.getenv('DATABASE_HOST'),
@@ -170,7 +165,7 @@ def obter_user_id(user_id):
         return resultado
        
     except Exception as e:
-        print("ERRO NO LOGIN:", repr(e))
+        print("ERRO NA LISTAGEM DO UTILIZADOR:", repr(e))
         return None
 
     finally:
@@ -261,7 +256,7 @@ def lista_logs():
         return utilizadores
     
     except Exception as e:
-        print("ERRO NO LOGIN:", repr(e))
+        print("ERRO NA LISTAGEM DOS LOGS:", repr(e))
         return None
 
     finally:
@@ -284,7 +279,7 @@ def obter_logs_user(id):
         return resultado
        
     except Exception as e:
-        print("ERRO NO LOGIN:", repr(e))
+        print("ERRO NA LISTAGEM DOS LOGS DO UTILIZADOR:", repr(e))
         return None
 
     finally:
@@ -350,21 +345,21 @@ def lista_devices():
         return utilizadores
     
     except Exception as e:
-        print("ERRO NO LOGIN:", repr(e))
+        print("ERRO NA LISTAGEM DO DISPOSITIVO:", repr(e))
         return None
 
     finally:
         if conn:
             conn.close()
 
-def obter_device_id(id):
+def obter_device_id(id_device):
     conn = None
 
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_list_devices_id(%s)', (id,))
+        cursor.execute('SELECT tam.fn_list_devices_id(%s)',(id_device, ))
 
         resultado = cursor.fetchone()[0]
 
@@ -374,7 +369,7 @@ def obter_device_id(id):
         return resultado
        
     except Exception as e:
-        print("ERRO NO LOGIN:", repr(e))
+        print("ERRO NA LISTAGEM DO DISPOSITIVO:", repr(e))
         return None
 
     finally:
