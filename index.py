@@ -255,37 +255,29 @@ def listar_devices_id(id):
     except Exception as e:
         print("ERRO NA ROTA DEVICE:", repr(e))
         return jsonify({"Erro": "Erro interno do servidor"}), 500
+       
+#Adicionar temperatura
+@app.route('/api/temp_readings', methods=['POST'])
+def adicionar_temperatura():
 
+    data = request.get_json()
 
-def adicionar_temperatura(temp_value, id_device):
-
-    conn = None
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT tam.fn_add_temp_reading(%s, %s)",
-            (temp_value, id_device)
+    if not data: 
+        return jsonify({
+            "error": "invalid parameters"
+        }), BAD_REQUEST_CODE
+    
+    if "temp_value" not in data or "id_device" not in data:
+        return jsonify({
+            "error": "missing parameters"
+        }), BAD_REQUEST_CODE
+    
+    resultado = db.adicionar_temperatura(
+            data["temp_value"],
+            data["id_device"]
         )
-
-        resultado = cursor.fetchone()
-
-        conn.commit()
-
-        if resultado is None:
-            return None
-
-        return resultado
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-
-        print("ERRO AO ADICIONAR TEMPERATURA:", repr(e))
-        raise
-
-    finally:
-        if conn:
-            conn.close()
+    
+    return jsonify({
+            "message": "Temperatura adicionada com sucesso",
+            "resultado": resultado
+        }), 201
