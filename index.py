@@ -247,6 +247,6 @@ def listar_devices_id(id):
     resultado = db.obter_device_id(id)
    
     if resultado is None:
-        return jsonify({"Erro": "Sem Logs para o utilizador"})
+        return jsonify({"Erro": "Device Inexistente"})
     
     return jsonify(resultado), 200
