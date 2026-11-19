@@ -242,11 +242,11 @@ def listar_devices():
     return jsonify(resultado), 200 
 
 #listar devices por id
-@app.route('/api/devices/<id>', methods=['GET'])
+@app.route('/api/devices/<id:int>', methods=['GET'])
 def listar_devices_id(id):
     resultado = db.obter_device_id(id)
    
     if resultado is None:
-        return jsonify({"Erro": "Sem Logs para o utilizador"})
+        return jsonify({"Erro": "Dispositivo Inexistente"})
     
     return jsonify(resultado), 200
