@@ -333,7 +333,7 @@ def lista_devices():
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_list_devices()')
+        cursor.execute('SELECT * tam.fn_list_devices()')
 
         resultado = cursor.fetchall()
 
@@ -349,6 +349,30 @@ def lista_devices():
 
         return utilizadores
     
+    except Exception as e:
+        print("ERRO NO LOGIN:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+def obter_device_id(id):
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tam.fn_list_devices_id(%s)', (id))
+
+        resultado = cursor.fetchone()[0]
+
+        if resultado is None:
+            return None
+
+        return resultado
+       
     except Exception as e:
         print("ERRO NO LOGIN:", repr(e))
         return None
