@@ -6,6 +6,45 @@ from flask import Flask, jsonify, request
 import jwt
 import db
 
+'''
+AUTH / USERS
+[x] Adicionar user                      POST   /api/auth/register
+[x] Login + registo do log              POST   /api/auth/login
+[x] Listar users                        GET    /api/users
+[x] Obter user por id                   GET    /api/users/<id>
+[x] Atualizar user                      PUT    /api/users/<id>
+[x] Desativar/remover user              DELETE /api/users/<id>
+
+ACCESS LOGS (só consulta, o registo é feito no login)
+[x] Listar logs                         GET    /api/logs
+[x] Logs de um user                     GET    /api/users/<id>/logs
+
+DEVICES
+[x] Adicionar device                    POST   /api/devices
+[ ] Listar devices                      GET    /api/devices
+[ ] Obter device por id                 GET    /api/devices/<id>
+[ ] Atualizar device                    PUT    /api/devices/<id>
+[ ] Remover device                      DELETE /api/devices/<id>
+
+TEMP READINGS (TMP)
+[ ] Adicionar valor TMP                 POST   /api/temp_readings
+[ ] Listar leituras (limit)             GET    /api/temp_readings
+[ ] Última leitura de um device         GET    /api/devices/<id>/temp_readings/latest
+[ ] Histórico de um device (de/até)     GET    /api/devices/<id>/temp_readings
+
+ALARM EVENTS
+[ ] Listar alarmes                      GET    /api/alarms
+[ ] Alarmes de um device                GET    /api/devices/<id>/alarms
+[ ] Alarmes ativos/não resolvidos       GET    /api/alarms?active=true
+[ ] Marcar alarme como resolvido        PUT    /api/alarms/<id>/resolve
+
+COMMANDS (ativar alarme / ativar ventoinha)
+[ ] Enviar comando (ALARM_ON, FAN_ON)   POST   /api/commands
+[ ] Listar comandos                     GET    /api/commands
+[ ] Comandos pendentes de um device     GET    /api/devices/<id>/commands/pending
+[ ] Marcar comando como executado       PUT    /api/commands/<id>/done
+'''
+
 app = Flask(__name__)
 app.debug = True
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'mysecretkey')
@@ -31,10 +70,7 @@ def home():
 def register():
     data = request.get_json()
 
-    if not data or not all(
-        campo in data and data[campo]
-        for campo in ['name', 'email', 'password', 'nif']
-    ):
+    if not data:
         return jsonify({
             "error": "invalid parameters"
         }), BAD_REQUEST_CODE
@@ -107,7 +143,7 @@ def listar_user_id(id):
     resultado = db.obter_user_id(id)
 
     if resultado is None:
-        jsonify({"Erro": "Utilizador não encontrado"})
+        return jsonify({"Erro": "Utilizador não encontrado"})
 
     return jsonify(resultado), 200
 
@@ -153,15 +189,27 @@ def remover_utilizador(id):
 @app.route('/api/logs', methods=['GET'])
 def listar_logs():
     
-    resultado = db.lista_logs()
+    resultado = db.lista_users()
 
     if resultado is None:
         return jsonify({"Erro": "Sem logs para listar"})
     
     return jsonify(resultado), 200
-   
+
+#listar logs por id
+@app.route('/api/users/<id>/logs', methods=['GET'])
+
+def listar_logs_user(id):
+    resultado = db.obter_logs_user(id)
+    
+    if resultado is None:
+        return jsonify({"Erro": "Sem Logs para o utilizador"})
+    
+    return jsonify(resultado), 200
+
 #Adicionar Dispositivo
 @app.route('/api/devices', methods=['POST'])
+
 def adicionar_device():
     data = request.get_json()
 
@@ -171,7 +219,7 @@ def adicionar_device():
             "error": "invalid parameters"
         }), BAD_REQUEST_CODE
 
-    resultado = db.adiciona_device(data["name"], data["modelo"], data["id_alarm_events"])
+    resultado = db.adiciona_device(data["id"], data["name"], data["modelo"], data["id_alarm_events"])
 
     if resultado:
         return jsonify({
@@ -181,3 +229,14 @@ def adicionar_device():
     return jsonify({
         "error": "device could not be added"
     }), 400
+
+#listar devices
+@app.route('/api/devices', methods=['GET']) 
+def listar_devices():
+   
+    resultado = db.lista_devices()
+
+    if resultado is None:
+        return jsonify({"Erro": "Sem logs para listar"})
+    
+    return jsonify(resultado), 200 
