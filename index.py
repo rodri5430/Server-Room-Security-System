@@ -242,7 +242,7 @@ def listar_devices():
     return jsonify(resultado), 200 
 
 # Listar device por ID
-@app.route('/api/devices/<int:id>', methods=['GET'])
+@app.route('/api/devices/<id>', methods=['GET'])
 def listar_devices_id(id):
 
     resultado = db.obter_device_id(id)
