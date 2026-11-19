@@ -333,7 +333,7 @@ def lista_devices():
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * tam.fn_list_devices()')
+        cursor.execute('SELECT * FROM tam.fn_list_devices()')
 
         resultado = cursor.fetchall()
 
