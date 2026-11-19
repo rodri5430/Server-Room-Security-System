@@ -235,7 +235,7 @@ def remover_utilizador(id):
     finally:
         if conn:
             conn.close()
-           
+
 #listar logs
 def lista_logs():
     conn = None
@@ -243,7 +243,7 @@ def lista_logs():
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_get_access_logs()')
+        cursor.execute('SELECT * tam.fn_get_access_logs()')
 
         resultado = cursor.fetchall()
         
@@ -268,7 +268,31 @@ def lista_logs():
         if conn:
             conn.close()
 
-def adiciona_device(id, nome, modelo, id_alarme):
+def obter_logs_user(id):
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tam.fn_logs_search_id(%s)', (id,))
+
+        resultado = cursor.fetchone()[0]
+
+        if resultado is None:
+            return None
+
+        return resultado
+       
+    except Exception as e:
+        print("ERRO NO LOGIN:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+def adiciona_device(id, nome, modelo, id_alarme): #Aqui a funcção na BD não verifica se o device já existe
+
     conn = None
 
     try:
@@ -276,8 +300,8 @@ def adiciona_device(id, nome, modelo, id_alarme):
         cursor = conn.cursor()
 
         cursor.execute(
-            'SELECT tam.adiciona_device(%s, %s, %s)',
-            (nome, modelo, id_alarme)
+            'SELECT tam.adiciona_device(%s, %s, %s, %s)',
+            (id, nome, modelo, id_alarme)
         )
 
         resultado = cursor.fetchone()[0]
@@ -294,6 +318,39 @@ def adiciona_device(id, nome, modelo, id_alarme):
             conn.rollback()
 
         print("ERRO AO ADICIONAR DEVICE:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+def lista_devices():
+
+    conn = None
+
+    try:
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * tam.fn_list_devices()')
+
+        resultado = cursor.fetchall()
+
+        utilizadores = []
+        
+        for row in resultado:
+            utilizadores.append({
+                "id": row[0],
+                "name": row[1],
+                "model": row[2],
+                "id_alarm_events": row[3]
+            })
+
+        return utilizadores
+    
+    except Exception as e:
+        print("ERRO NO LOGIN:", repr(e))
         return None
 
     finally:
