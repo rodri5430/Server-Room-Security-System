@@ -383,3 +383,36 @@ def obter_device_id(id_device):
     finally:
         if conn:
             conn.close()
+
+def adicionar_temperatura(temp_value, id_device):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT tam.fn_add_temp_reading(%s, %s)",
+            (temp_value, id_device)
+        )
+
+        resultado = cursor.fetchone()
+
+        conn.commit()
+
+        if resultado is None:
+            return None
+
+        return resultado
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO ADICIONAR TEMPERATURA:", repr(e))
+        raise
+
+    finally:
+        if conn:
+            conn.close()
