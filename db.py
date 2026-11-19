@@ -364,7 +364,7 @@ def obter_device_id(id):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT tam.fn_list_devices_id(%s)', (id,))
+        cursor.execute('SELECT * FROM tam.fn_list_devices_id(%s)', (id,))
 
         resultado = cursor.fetchone()[0]
 
