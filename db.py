@@ -359,18 +359,26 @@ def obter_device_id(id_device):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT * FROM tam.fn_list_devices_id(%s)", (id_device,))
+        cursor.execute(
+            "SELECT * FROM tam.fn_list_devices_id(%s::INT)",
+            (id_device,)
+        )
 
-        resultado = cursor.fetchone()[0]
+        resultado = cursor.fetchone()
+
+        print("ID RECEBIDO:", id_device)
+        print("RESULTADO BD:", resultado)
 
         if resultado is None:
             return None
 
-        return resultado
-       
+        colunas = [desc[0] for desc in cursor.description]
+
+        return dict(zip(colunas, resultado))
+
     except Exception as e:
-        print("ERRO NA LISTAGEM DO DISPOSITIVO:", repr(e))
-        return None
+        print("ERRO REAL NA CONSULTA DO DEVICE:", repr(e))
+        raise
 
     finally:
         if conn:
