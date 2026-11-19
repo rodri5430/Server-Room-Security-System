@@ -244,7 +244,7 @@ def listar_devices():
 #listar devices por id
 @app.route('/api/devices/<id>', methods=['GET'])
 def listar_devices_id(id):
-    resultado = db.obter_devices_id(id)
+    resultado = db.obter_device_id(id)
    
     if resultado is None:
         return jsonify({"Erro": "Sem Logs para o utilizador"})
