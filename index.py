@@ -21,7 +21,7 @@ ACCESS LOGS (só consulta, o registo é feito no login)
 
 DEVICES
 [x] Adicionar device                    POST   /api/devices
-[ ] Listar devices                      GET    /api/devices
+[x] Listar devices                      GET    /api/devices
 [ ] Obter device por id                 GET    /api/devices/<id>
 [ ] Atualizar device                    PUT    /api/devices/<id>
 [ ] Remover device                      DELETE /api/devices/<id>
@@ -39,7 +39,7 @@ ALARM EVENTS
 [ ] Marcar alarme como resolvido        PUT    /api/alarms/<id>/resolve
 
 COMMANDS (ativar alarme / ativar ventoinha)
-[ ] Enviar comando (ALARM_ON, FAN_ON)   POST   /api/commands
+[ ] Enviar comando                      POST   /api/commands
 [ ] Listar comandos                     GET    /api/commands
 [ ] Comandos pendentes de um device     GET    /api/devices/<id>/commands/pending
 [ ] Marcar comando como executado       PUT    /api/commands/<id>/done
@@ -223,11 +223,11 @@ def adicionar_device():
 
     if resultado:
         return jsonify({
-        "message": "device added successfully"
+        "message": "Dispositivo Adicionado com Sucesso"
         }), 201
     
     return jsonify({
-        "error": "device could not be added"
+        "error": "Não foi possível adicionar Dispositivos"
     }), 400
 
 #listar devices
@@ -240,3 +240,14 @@ def listar_devices():
         return jsonify({"Erro": "Sem logs para listar"})
     
     return jsonify(resultado), 200 
+
+#listar devices por id
+@app.route('/api/devices/<id>', methods=['GET'])
+def listar_devices_id(id):
+
+    resultado = db.obter_device_id(id)
+        
+    if resultado is None:
+        return jsonify({"Erro": "Dispositivo Inexistente"})
+    
+    return jsonify(resultado), 200
