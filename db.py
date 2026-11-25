@@ -1,3 +1,4 @@
+#db.py
 import os
 import bcrypt
 import psycopg2
@@ -412,6 +413,359 @@ def adicionar_temperatura(temp_value, id_device):
 
         print("ERRO AO ADICIONAR TEMPERATURA:", repr(e))
         raise
+
+    finally:
+        if conn:
+            conn.close()
+
+def atualiza_device(id_device, nome, modelo, id_alarme):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            'SELECT tam.fn_update_device(%s, %s, %s, %s)',
+            (id_device, nome, modelo, id_alarme)
+        )
+
+        resultado = cursor.fetchone()[0]
+
+        conn.commit()
+
+        return resultado
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO ATUALIZAR DEVICE:", repr(e))
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+
+#remover device
+def remove_device(id_device):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tam.fn_remove_device(%s)', (id_device,))
+
+        resultado = cursor.fetchone()[0]
+
+        conn.commit()
+
+        return resultado
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO REMOVER DEVICE:", repr(e))
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+
+#listar leituras de temperatura (com limit)
+def lista_temp_readings(limit):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM tam.fn_list_temp_readings(%s)', (limit,))
+
+        resultado = cursor.fetchall()
+
+        colunas = [desc[0] for desc in cursor.description]
+
+        leituras = []
+
+        for row in resultado:
+            leituras.append(dict(zip(colunas, row)))
+
+        return leituras
+
+    except Exception as e:
+        print("ERRO NA LISTAGEM DAS TEMPERATURAS:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#última leitura de um device
+def ultima_temp_device(id_device):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM tam.fn_latest_temp_reading(%s)', (id_device,))
+
+        resultado = cursor.fetchone()
+
+        if resultado is None:
+            return None
+
+        colunas = [desc[0] for desc in cursor.description]
+
+        return dict(zip(colunas, resultado))
+
+    except Exception as e:
+        print("ERRO NA ÚLTIMA TEMPERATURA:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#histórico de um device (de/até)
+def historico_temp_device(id_device, data_inicio, data_fim):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            'SELECT * FROM tam.fn_temp_readings_by_device(%s, %s::timestamptz, %s::timestamptz)',
+            (id_device, data_inicio, data_fim)
+        )
+
+        resultado = cursor.fetchall()
+
+        colunas = [desc[0] for desc in cursor.description]
+
+        leituras = []
+
+        for row in resultado:
+            leituras.append(dict(zip(colunas, row)))
+
+        return leituras
+
+    except Exception as e:
+        print("ERRO NO HISTÓRICO DE TEMPERATURAS:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#listar alarmes (ativos = só os não resolvidos)
+def lista_alarmes(ativos):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM tam.fn_list_alarms(%s)', (ativos,))
+
+        resultado = cursor.fetchall()
+
+        colunas = [desc[0] for desc in cursor.description]
+
+        alarmes = []
+
+        for row in resultado:
+            alarmes.append(dict(zip(colunas, row)))
+
+        return alarmes
+
+    except Exception as e:
+        print("ERRO NA LISTAGEM DOS ALARMES:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#alarmes de um device
+def alarmes_device(id_device):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM tam.fn_alarms_by_device(%s)', (id_device,))
+
+        resultado = cursor.fetchall()
+
+        colunas = [desc[0] for desc in cursor.description]
+
+        alarmes = []
+
+        for row in resultado:
+            alarmes.append(dict(zip(colunas, row)))
+
+        return alarmes
+
+    except Exception as e:
+        print("ERRO NOS ALARMES DO DEVICE:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#marcar alarme como resolvido
+def resolve_alarme(id_alarme):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tam.fn_resolve_alarm(%s)', (id_alarme,))
+
+        resultado = cursor.fetchone()[0]
+
+        conn.commit()
+
+        return resultado
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO RESOLVER ALARME:", repr(e))
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+
+#enviar comando
+def adiciona_comando(id_device, comando):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tam.fn_add_command(%s, %s)', (id_device, comando))
+
+        resultado = cursor.fetchone()[0]
+
+        conn.commit()
+
+        return resultado
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO ADICIONAR COMANDO:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#listar comandos
+def lista_comandos():
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM tam.fn_list_commands()')
+
+        resultado = cursor.fetchall()
+
+        colunas = [desc[0] for desc in cursor.description]
+
+        comandos = []
+
+        for row in resultado:
+            comandos.append(dict(zip(colunas, row)))
+
+        return comandos
+
+    except Exception as e:
+        print("ERRO NA LISTAGEM DOS COMANDOS:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#comandos pendentes de um device
+def comandos_pendentes(id_device):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM tam.fn_pending_commands(%s)', (id_device,))
+
+        resultado = cursor.fetchall()
+
+        colunas = [desc[0] for desc in cursor.description]
+
+        comandos = []
+
+        for row in resultado:
+            comandos.append(dict(zip(colunas, row)))
+
+        return comandos
+
+    except Exception as e:
+        print("ERRO NOS COMANDOS PENDENTES:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#marcar comando como executado
+def marca_comando_feito(id_comando):
+
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tam.fn_mark_command_done(%s)', (id_comando,))
+
+        resultado = cursor.fetchone()[0]
+
+        conn.commit()
+
+        return resultado
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO MARCAR COMANDO COMO EXECUTADO:", repr(e))
+        return False
 
     finally:
         if conn:
