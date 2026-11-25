@@ -1,3 +1,5 @@
+#index.py
+
 import os
 import json
 from datetime import datetime, timedelta
@@ -23,26 +25,26 @@ DEVICES
 [x] Adicionar device                    POST   /api/devices
 [x] Listar devices                      GET    /api/devices
 [ ] Obter device por id                 GET    /api/devices/<id>
-[ ] Atualizar device                    PUT    /api/devices/<id>
-[ ] Remover device                      DELETE /api/devices/<id>
+[x] Atualizar device                    PUT    /api/devices/<id>
+[x] Remover device                      DELETE /api/devices/<id>
 
 TEMP READINGS (TMP)
-[ ] Adicionar valor TMP                 POST   /api/temp_readings
-[ ] Listar leituras (limit)             GET    /api/temp_readings
-[ ] Última leitura de um device         GET    /api/devices/<id>/temp_readings/latest
+[x] Adicionar valor TMP                 POST   /api/temp_readings
+[x] Listar leituras (limit)             GET    /api/temp_readings
+[x] Última leitura de um device         GET    /api/devices/<id>/temp_readings/latest
 [ ] Histórico de um device (de/até)     GET    /api/devices/<id>/temp_readings
 
 ALARM EVENTS
-[ ] Listar alarmes                      GET    /api/alarms
-[ ] Alarmes de um device                GET    /api/devices/<id>/alarms
-[ ] Alarmes ativos/não resolvidos       GET    /api/alarms?active=true
-[ ] Marcar alarme como resolvido        PUT    /api/alarms/<id>/resolve
+[x] Listar alarmes                      GET    /api/alarms
+[x] Alarmes de um device                GET    /api/devices/<id>/alarms
+[x] Alarmes ativos/não resolvidos       GET    /api/alarms?active=true
+[x] Marcar alarme como resolvido        PUT    /api/alarms/<id>/resolve
 
 COMMANDS (ativar alarme / ativar ventoinha)
-[ ] Enviar comando                      POST   /api/commands
-[ ] Listar comandos                     GET    /api/commands
-[ ] Comandos pendentes de um device     GET    /api/devices/<id>/commands/pending
-[ ] Marcar comando como executado       PUT    /api/commands/<id>/done
+[x] Enviar comando                      POST   /api/commands
+[x] Listar comandos                     GET    /api/commands
+[x] Comandos pendentes de um device     GET    /api/devices/<id>/commands/pending
+[x] Marcar comando como executado       PUT    /api/commands/<id>/done
 '''
 
 app = Flask(__name__)
@@ -281,3 +283,177 @@ def adicionar_temperatura():
             "message": "Temperatura adicionada com sucesso",
             "resultado": resultado
         }), 201
+
+#Atualizar device
+@app.route('/api/devices/<id>', methods=['PUT'])
+def atualizar_device(id):
+
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Dados em falta"}), 400
+
+    nome = data.get("name")
+    modelo = data.get("modelo")
+    id_alarm_events = data.get("id_alarm_events")
+
+    if not nome or not modelo or id_alarm_events is None:
+        return jsonify({"error": "Faltam campos obrigatórios"}), 400
+
+    resultado = db.atualiza_device(id, nome, modelo, id_alarm_events)
+
+    if not resultado:
+        return jsonify({"error": "Device não encontrado"}), 404
+
+    return jsonify({"mensagem": "Device atualizado com sucesso"}), 200
+
+#Remover device
+@app.route('/api/devices/<id>', methods=['DELETE'])
+def remover_device(id):
+
+    resultado = db.remove_device(id)
+
+    if not resultado:
+        return jsonify({"mensagem": "Device não encontrado"}), 404
+
+    return jsonify({"mensagem": "Device removido com sucesso"}), 200
+
+#Listar leituras de temperatura (?limit=50)
+@app.route('/api/temp_readings', methods=['GET'])
+def listar_temp_readings():
+
+    limit = request.args.get("limit", default=50, type=int)
+
+    resultado = db.lista_temp_readings(limit)
+
+    if resultado is None:
+        return jsonify({"Erro": "Erro ao listar temperaturas"}), 500
+
+    return jsonify(resultado), 200
+
+#Última leitura de um device
+@app.route('/api/devices/<id>/temp_readings/latest', methods=['GET'])
+def ultima_temperatura(id):
+
+    resultado = db.ultima_temp_device(id)
+
+    if resultado is None:
+        return jsonify({"Erro": "Sem leituras para este device"}), 404
+
+    return jsonify(resultado), 200
+
+#Histórico de um device (?from=2026-11-25T00:00:00&to=2026-11-25T23:59:59)
+@app.route('/api/devices/<id>/temp_readings', methods=['GET'])
+def historico_temperatura(id):
+
+    data_inicio = request.args.get("from")
+    data_fim = request.args.get("to")
+
+    if not data_inicio or not data_fim:
+        return jsonify({"error": "Faltam os parâmetros from e to"}), 400 
+
+    resultado = db.historico_temp_device(id, data_inicio, data_fim)
+
+    if resultado is None:
+        return jsonify({"Erro": "Erro ao obter histórico"}), 500
+
+    return jsonify(resultado), 200
+
+#Listar alarmes (?active=true para só os não resolvidos)
+@app.route('/api/alarms', methods=['GET'])
+def listar_alarmes():
+
+    ativos = request.args.get("active", "false").lower() == "true"
+
+    resultado = db.lista_alarmes(ativos)
+
+    if resultado is None:
+        return jsonify({"Erro": "Erro ao listar alarmes"}), 500
+
+    return jsonify(resultado), 200
+
+#Alarmes de um device
+@app.route('/api/devices/<id>/alarms', methods=['GET'])
+def listar_alarmes_device(id):
+
+    resultado = db.alarmes_device(id)
+
+    if resultado is None:
+        return jsonify({"Erro": "Erro ao listar alarmes do device"}), 500
+
+    return jsonify(resultado), 200
+
+#Marcar alarme como resolvido
+@app.route('/api/alarms/<id>/resolve', methods=['PUT'])
+def resolver_alarme(id):
+
+    resultado = db.resolve_alarme(id)
+
+    if not resultado:
+        return jsonify({"error": "Alarme não encontrado ou já resolvido"}), 404
+
+    return jsonify({"mensagem": "Alarme resolvido com sucesso"}), 200
+
+#Enviar comando (fan_on, fan_off, alarm_on, alarm_off)
+@app.route('/api/commands', methods=['POST'])
+def enviar_comando():
+
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "error": "invalid parameters"
+        }), BAD_REQUEST_CODE
+
+    if "id_device" not in data or "command" not in data:
+        return jsonify({
+            "error": "missing parameters"
+        }), BAD_REQUEST_CODE
+
+    if data["command"] not in ["fan_on", "fan_off", "alarm_on", "alarm_off"]:
+        return jsonify({
+            "error": "Comando inválido"
+        }), BAD_REQUEST_CODE
+
+    resultado = db.adiciona_comando(data["id_device"], data["command"])
+
+    if resultado is None:
+        return jsonify({"error": "Não foi possível enviar o comando"}), 500
+
+    return jsonify({
+        "message": "Comando enviado com sucesso",
+        "id": resultado
+    }), 201
+
+#Listar comandos
+@app.route('/api/commands', methods=['GET'])
+def listar_comandos():
+
+    resultado = db.lista_comandos()
+
+    if resultado is None:
+        return jsonify({"Erro": "Erro ao listar comandos"}), 500
+
+    return jsonify(resultado), 200
+
+#Comandos pendentes de um device
+@app.route('/api/devices/<id>/commands/pending', methods=['GET'])
+def listar_comandos_pendentes(id):
+
+    resultado = db.comandos_pendentes(id)
+
+    if resultado is None:
+        return jsonify({"Erro": "Erro ao listar comandos pendentes"}), 500
+
+    return jsonify(resultado), 200
+
+#Marcar comando como executado
+@app.route('/api/commands/<id>/done', methods=['PUT'])
+def comando_executado(id):
+
+    resultado = db.marca_comando_feito(id)
+
+    if not resultado:
+        return jsonify({"error": "Comando não encontrado ou já executado"}), 404
+
+    return jsonify({"mensagem": "Comando marcado como executado"}), 200
