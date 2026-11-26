@@ -33,8 +33,6 @@ def add_user(nome, email, password, nif):
     
         resultadoAdicionaUser = cursor.fetchone()[0]
 
-        print("RESULTADO:", resultadoAdicionaUser)
-
         conn.commit()
 
         return resultadoAdicionaUser
@@ -50,9 +48,7 @@ def add_user(nome, email, password, nif):
         if conn:
             conn.close()
 
-#Adicionar Logs NÃO TEM FUNÇÃO NA BASE DE DADOS 
-
-
+#Login + registo do log
 def adiciona_logs(email, password):
 
     conn = None
@@ -143,32 +139,9 @@ def lista_users():
     except Exception as e:
         if conn:
             conn.rollback()
-        return False
-    
-    finally:
-        if conn:
-            conn.close()
-
-def obter_user_id(user_id):
-
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT tam.fn_user_search_id(%s)', (user_id,))
-
-        resultado = cursor.fetchone()[0]
-
-        if resultado is None:
-            return None
-
-        return resultado
-       
-    except Exception as e:
-        print("ERRO NA LISTAGEM DO UTILIZADOR:", repr(e))
+        print("ERRO NA LISTAGEM DE UTILIZADORES:", repr(e))
         return None
-
+    
     finally:
         if conn:
             conn.close()
@@ -232,62 +205,7 @@ def remover_utilizador(id):
         if conn:
             conn.close()
 
-#listar logs
-def lista_logs():
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT * tam.fn_get_access_logs()')
-
-        resultado = cursor.fetchall()
-        
-        utilizadores = []
-        
-        for row in resultado:
-            utilizadores.append({
-                "log_id": row[0],
-                "utilizador_nome": row[1],
-                "utilizador_email": row[2],
-                "login_time": row[3],
-                "status": row[4]
-            })
-
-        return utilizadores
-    
-    except Exception as e:
-        print("ERRO NA LISTAGEM DOS LOGS:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
-
-def obter_logs_user(id):
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT tam.fn_logs_search_id(%s)', (id,))
-
-        resultado = cursor.fetchone()[0]
-
-        if resultado is None:
-            return None
-
-        return resultado
-       
-    except Exception as e:
-        print("ERRO NA LISTAGEM DOS LOGS DO UTILIZADOR:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
-
-def adiciona_device(id, nome, modelo, id_alarme): #Aqui a funcção na BD não verifica se o device já existe
+def adiciona_device(nome, modelo, id_alarme):
 
     conn = None
 
@@ -296,8 +214,8 @@ def adiciona_device(id, nome, modelo, id_alarme): #Aqui a funcção na BD não v
         cursor = conn.cursor()
 
         cursor.execute(
-            'SELECT tam.adiciona_device(%s, %s, %s, %s)',
-            (id, nome, modelo, id_alarme)
+            'SELECT tam.adiciona_device(%s, %s, %s)',
+            (nome, modelo, id_alarme)
         )
 
         resultado = cursor.fetchone()[0]
@@ -320,39 +238,192 @@ def adiciona_device(id, nome, modelo, id_alarme): #Aqui a funcção na BD não v
         if conn:
             conn.close()
 
-def lista_devices():
+#obter user por id
+def obter_user_id(user_id):
 
     conn = None
-
     try:
-
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * tam.fn_list_devices()')
+        cursor.execute('SELECT id, nome, email, nif FROM tam.fn_user_search_id(%s)', (user_id,))
+
+        resultado = cursor.fetchone()
+
+        if resultado is None:
+            return None
+
+        return {
+            "id": resultado[0],
+            "nome": resultado[1],
+            "email": resultado[2],
+            "nif": resultado[3]
+        }
+
+    except Exception as e:
+        print("ERRO NA LISTAGEM DO UTILIZADOR:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#logs de um user
+def obter_logs_user(id):
+
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT log_id, login_time, status FROM tam.fn_logs_search_id(%s::INT)', (id,))
 
         resultado = cursor.fetchall()
 
-        utilizadores = []
-        
+        logs = []
+
         for row in resultado:
-            utilizadores.append({
+            logs.append({
+                "log_id": row[0],
+                "login_time": row[1],
+                "status": row[2]
+            })
+
+        return logs
+
+    except Exception as e:
+        print("ERRO NA LISTAGEM DOS LOGS DO UTILIZADOR:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#listar logs
+def lista_logs():
+
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM tam.fn_get_access_logs()')
+
+        resultado = cursor.fetchall()
+
+        logs = []
+
+        for row in resultado:
+            logs.append({
+                "log_id": row[0],
+                "utilizador_nome": row[1],
+                "utilizador_email": row[2],
+                "login_time": row[3],
+                "status": row[4]
+            })
+
+        return logs
+
+    except Exception as e:
+        print("ERRO NA LISTAGEM DOS LOGS:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#listar devices
+def lista_devices():
+
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT id, name, model, id_alarm_events FROM tam.fn_list_devices()')
+
+        resultado = cursor.fetchall()
+
+        devices = []
+
+        for row in resultado:
+            devices.append({
                 "id": row[0],
                 "name": row[1],
                 "model": row[2],
                 "id_alarm_events": row[3]
             })
 
-        return utilizadores
-    
+        return devices
+
     except Exception as e:
-        print("ERRO NA LISTAGEM DO DISPOSITIVO:", repr(e))
+        print("ERRO NA LISTAGEM DOS DEVICES:", repr(e))
         return None
 
     finally:
         if conn:
             conn.close()
-            
+
+#adicionar temperatura
+def adicionar_temperatura(temp_value, id_device):
+
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            'SELECT tam.fn_processo_leitura_temperatura(%s, %s)',
+            (id_device, temp_value)
+        )
+
+        alarme_disparou = cursor.fetchone()[0]
+
+        conn.commit()
+
+        return {"alarme_disparou": alarme_disparou}
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("ERRO AO ADICIONAR TEMPERATURA:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#NOVA: último utilizador com acesso autorizado
+def ultimo_utilizador_autorizado():
+
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM tam.fn_obter_ultimo_utilizador_autorizado()')
+
+        resultado = cursor.fetchone()
+
+        if resultado is None:
+            return None
+
+        return {
+            "nome_utilizador": resultado[0],
+            "email_utilizador": resultado[1],
+            "data_hora_acesso": resultado[2]
+        }
+
+    except Exception as e:
+        print("ERRO NO ÚLTIMO UTILIZADOR AUTORIZADO:", repr(e))
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
+#obter device por id (substitui a versão anterior)
 def obter_device_id(id_device):
     conn = None
 
@@ -361,21 +432,21 @@ def obter_device_id(id_device):
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT * FROM tam.fn_list_devices_id(%s::INT)",
+            "SELECT id, name, model, id_alarm_events FROM tam.fn_list_devices_id(%s::INT)",
             (id_device,)
         )
 
         resultado = cursor.fetchone()
 
-        print("ID RECEBIDO:", id_device)
-        print("RESULTADO BD:", resultado)
-
         if resultado is None:
             return None
 
-        colunas = [desc[0] for desc in cursor.description]
-
-        return dict(zip(colunas, resultado))
+        return {
+            "id": resultado[0],
+            "name": resultado[1],
+            "model": resultado[2],
+            "id_alarm_events": resultado[3]
+        }
 
     except Exception as e:
         print("ERRO REAL NA CONSULTA DO DEVICE:", repr(e))
@@ -385,39 +456,7 @@ def obter_device_id(id_device):
         if conn:
             conn.close()
 
-def adicionar_temperatura(temp_value, id_device):
-
-    conn = None
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT tam.fn_add_temp_reading(%s, %s)",
-            (temp_value, id_device)
-        )
-
-        resultado = cursor.fetchone()
-
-        conn.commit()
-
-        if resultado is None:
-            return None
-
-        return resultado
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-
-        print("ERRO AO ADICIONAR TEMPERATURA:", repr(e))
-        raise
-
-    finally:
-        if conn:
-            conn.close()
-
+#atualizar device
 def atualiza_device(id_device, nome, modelo, id_alarme):
 
     conn = None
@@ -485,16 +524,18 @@ def lista_temp_readings(limit):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_list_temp_readings(%s)', (limit,))
+        cursor.execute('SELECT id_device, temperature_value, recorded_at FROM tam.fn_list_temp_readings(%s)', (limit,))
 
         resultado = cursor.fetchall()
-
-        colunas = [desc[0] for desc in cursor.description]
 
         leituras = []
 
         for row in resultado:
-            leituras.append(dict(zip(colunas, row)))
+            leituras.append({
+                "id_device": row[0],
+                "temperature_value": float(row[1]),
+                "recorded_at": row[2]
+            })
 
         return leituras
 
@@ -515,16 +556,21 @@ def ultima_temp_device(id_device):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_latest_temp_reading(%s)', (id_device,))
+        cursor.execute(
+            'SELECT id_device, temperature_value, recorded_at FROM tam.fn_latest_temp_reading(%s)',
+            (id_device,)
+        )
 
         resultado = cursor.fetchone()
 
         if resultado is None:
             return None
 
-        colunas = [desc[0] for desc in cursor.description]
-
-        return dict(zip(colunas, resultado))
+        return {
+            "id_device": resultado[0],
+            "temperature_value": float(resultado[1]),
+            "recorded_at": resultado[2]
+        }
 
     except Exception as e:
         print("ERRO NA ÚLTIMA TEMPERATURA:", repr(e))
@@ -544,18 +590,20 @@ def historico_temp_device(id_device, data_inicio, data_fim):
         cursor = conn.cursor()
 
         cursor.execute(
-            'SELECT * FROM tam.fn_temp_readings_by_device(%s, %s::timestamptz, %s::timestamptz)',
+            'SELECT id_device, temperature_value, recorded_at FROM tam.fn_temp_readings_by_device(%s, %s, %s)',
             (id_device, data_inicio, data_fim)
         )
 
         resultado = cursor.fetchall()
 
-        colunas = [desc[0] for desc in cursor.description]
-
         leituras = []
 
         for row in resultado:
-            leituras.append(dict(zip(colunas, row)))
+            leituras.append({
+                "id_device": row[0],
+                "temperature_value": float(row[1]),
+                "recorded_at": row[2]
+            })
 
         return leituras
 
@@ -576,16 +624,19 @@ def lista_alarmes(ativos):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_list_alarms(%s)', (ativos,))
+        cursor.execute('SELECT id, id_device, trigger_reason, resolved_at FROM tam.fn_list_alarms(%s)', (ativos,))
 
         resultado = cursor.fetchall()
-
-        colunas = [desc[0] for desc in cursor.description]
 
         alarmes = []
 
         for row in resultado:
-            alarmes.append(dict(zip(colunas, row)))
+            alarmes.append({
+                "id": row[0],
+                "id_device": row[1],
+                "trigger_reason": row[2],
+                "resolved_at": row[3]
+            })
 
         return alarmes
 
@@ -606,16 +657,19 @@ def alarmes_device(id_device):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_alarms_by_device(%s)', (id_device,))
+        cursor.execute('SELECT id, id_device, trigger_reason, resolved_at FROM tam.fn_alarms_by_device(%s)', (id_device,))
 
         resultado = cursor.fetchall()
-
-        colunas = [desc[0] for desc in cursor.description]
 
         alarmes = []
 
         for row in resultado:
-            alarmes.append(dict(zip(colunas, row)))
+            alarmes.append({
+                "id": row[0],
+                "id_device": row[1],
+                "trigger_reason": row[2],
+                "resolved_at": row[3]
+            })
 
         return alarmes
 
@@ -692,16 +746,19 @@ def lista_comandos():
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_list_commands()')
+        cursor.execute('SELECT id, id_device, command_text, executed FROM tam.fn_list_commands()')
 
         resultado = cursor.fetchall()
-
-        colunas = [desc[0] for desc in cursor.description]
 
         comandos = []
 
         for row in resultado:
-            comandos.append(dict(zip(colunas, row)))
+            comandos.append({
+                "id": row[0],
+                "id_device": row[1],
+                "command_text": row[2],
+                "executed": row[3]
+            })
 
         return comandos
 
@@ -722,16 +779,19 @@ def comandos_pendentes(id_device):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_pending_commands(%s)', (id_device,))
+        cursor.execute('SELECT id, id_device, command_text, executed FROM tam.fn_pending_commands(%s)', (id_device,))
 
         resultado = cursor.fetchall()
-
-        colunas = [desc[0] for desc in cursor.description]
 
         comandos = []
 
         for row in resultado:
-            comandos.append(dict(zip(colunas, row)))
+            comandos.append({
+                "id": row[0],
+                "id_device": row[1],
+                "command_text": row[2],
+                "executed": row[3]
+            })
 
         return comandos
 
