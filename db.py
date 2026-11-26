@@ -276,7 +276,7 @@ def obter_logs_user(id):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT log_id, login_time, status FROM tam.fn_logs_search_id(%s::INT)', (id,))
+        cursor.execute('SELECT log_id, login_time, status FROM tam.fn_logs_search_id(%s)', (id,))
 
         resultado = cursor.fetchall()
 
@@ -340,7 +340,7 @@ def lista_devices():
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT id, name, model, id_alarm_events FROM tam.fn_list_devices()')
+        cursor.execute('SELECT * FROM tam.fn_list_devices()')
 
         resultado = cursor.fetchall()
 
@@ -432,7 +432,7 @@ def obter_device_id(id_device):
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT id, name, model, id_alarm_events FROM tam.fn_list_devices_id(%s::INT)",
+            "SELECT * FROM tam.fn_list_devices_id(%s)",
             (id_device,)
         )
 
