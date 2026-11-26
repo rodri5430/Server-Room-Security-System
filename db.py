@@ -8,7 +8,9 @@ def get_connection():
         host=os.getenv('DATABASE_HOST'),
         database=os.getenv('DATABASE_NAME'),
         user=os.getenv('DATABASE_USER'),
-        password=os.getenv('DATABASE_PASSWORD')
+        password=os.getenv('DATABASE_PASSWORD'),
+        port=os.getenv('DATABASE_PORT', '5432'),
+        connect_timeout=10
     )
 
 #MÉTODOS ADICIONAR À BD
@@ -48,7 +50,7 @@ def add_user(nome, email, password, nif):
         if conn:
             conn.close()
 
-#Login + registo do log
+#Login + registo do log (a validação da password é feita aqui com bcrypt)
 def adiciona_logs(email, password):
 
     conn = None
@@ -239,6 +241,7 @@ def adiciona_device(nome, modelo, id_alarme):
             conn.close()
 
 #obter user por id
+#fn_user_search_id devolve TABLE, por isso é SELECT * FROM e não SELECT fn()
 def obter_user_id(user_id):
 
     conn = None
@@ -268,7 +271,7 @@ def obter_user_id(user_id):
         if conn:
             conn.close()
 
-#logs de um user
+#logs de um user (fn_logs_search_id também devolve TABLE)
 def obter_logs_user(id):
 
     conn = None
@@ -299,7 +302,7 @@ def obter_logs_user(id):
         if conn:
             conn.close()
 
-#listar logs
+#listar logs (faltava o FROM)
 def lista_logs():
 
     conn = None
@@ -332,7 +335,7 @@ def lista_logs():
         if conn:
             conn.close()
 
-#listar devices
+#listar devices (faltava o FROM; as colunas vêm de tam.devices)
 def lista_devices():
 
     conn = None
@@ -340,7 +343,7 @@ def lista_devices():
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT * FROM tam.fn_list_devices()')
+        cursor.execute('SELECT id, name, model, id_alarm_events FROM tam.fn_list_devices()')
 
         resultado = cursor.fetchall()
 
@@ -365,6 +368,8 @@ def lista_devices():
             conn.close()
 
 #adicionar temperatura
+#a função da BD chama-se fn_processo_leitura_temperatura(id_device, temperatura)
+#ATENÇÃO: a ordem dos parâmetros é id_device primeiro. Devolve TRUE se disparou alarme novo
 def adicionar_temperatura(temp_value, id_device):
 
     conn = None
@@ -394,7 +399,7 @@ def adicionar_temperatura(temp_value, id_device):
         if conn:
             conn.close()
 
-#NOVA: último utilizador com acesso autorizado
+#NOVA: último utilizador com acesso autorizado (para mostrar quando o alarme dispara)
 def ultimo_utilizador_autorizado():
 
     conn = None
@@ -432,7 +437,7 @@ def obter_device_id(id_device):
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT * FROM tam.fn_list_devices_id(%s)",
+            "SELECT id, name, model, id_alarm_events FROM tam.fn_list_devices_id(%s)",
             (id_device,)
         )
 
@@ -504,12 +509,19 @@ def remove_device(id_device):
 
         return resultado
 
+    except psycopg2.errors.ForeignKeyViolation:
+        # o device tem leituras, alarmes ou comandos associados
+        if conn:
+            conn.rollback()
+
+        return "EM_USO"
+
     except Exception as e:
         if conn:
             conn.rollback()
 
         print("ERRO AO REMOVER DEVICE:", repr(e))
-        return False
+        return None
 
     finally:
         if conn:
@@ -590,7 +602,7 @@ def historico_temp_device(id_device, data_inicio, data_fim):
         cursor = conn.cursor()
 
         cursor.execute(
-            'SELECT id_device, temperature_value, recorded_at FROM tam.fn_temp_readings_by_device(%s, %s, %s)',
+            'SELECT id_device, temperature_value, recorded_at FROM tam.fn_temp_readings_by_device(%s, %s::timestamptz, %s::timestamptz)',
             (id_device, data_inicio, data_fim)
         )
 
