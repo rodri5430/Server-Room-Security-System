@@ -1,832 +1,448 @@
-#db.py
+#index.py
 import os
-import bcrypt
-import psycopg2
+from flask import Flask, jsonify, request
+import db
 
-def get_connection():
-    return psycopg2.connect(
-        host=os.getenv('DATABASE_HOST'),
-        database=os.getenv('DATABASE_NAME'),
-        user=os.getenv('DATABASE_USER'),
-        password=os.getenv('DATABASE_PASSWORD')
-    )
+app = Flask(__name__)
+app.debug = os.getenv('FLASK_DEBUG') == '1'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'mysecretkey')
 
-#MÉTODOS ADICIONAR À BD
+OK_CODE = 200
+SUCCESS_CODE = 201
+BAD_REQUEST_CODE = 400
+UNAUTHORIZED_CODE = 401
+NOT_FOUND = 404
+CONFLICT_CODE = 409
+SERVER_ERROR = 500
 
-#Adicionar Utilizador à aplicação
-def add_user(nome, email, password, nif):
-    conn = None
 
+#Verifica se um device existe
+#True = existe, False = não existe, None = erro na BD
+def device_existe(id_device):
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # Hashing da password
-        password_bytes = password.encode('utf-8')
-        salt = bcrypt.gensalt()
-        passwordHashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
-
-        cursor.execute(
-        "SELECT tam.fn_register_user(%s, %s, %s, %s)",
-        (nif, nome, email, passwordHashed)
-        )
-    
-        resultadoAdicionaUser = cursor.fetchone()[0]
-
-        conn.commit()
-
-        return resultadoAdicionaUser
-
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        print("ERRO: Erro ao adicionar Utilizador")
-        return False
-
-    finally:
-        if conn:
-            conn.close()
-
-#Login + registo do log
-def adiciona_logs(email, password):
-
-    conn = None
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT password_hash
-            FROM tam.users
-            WHERE email = %s
-        """, (email,))
-
-        resultado = cursor.fetchone()
-
-        if resultado is None:
-            # Email inexistente: registar tentativa falhada
-            cursor.execute("""
-                SELECT * FROM tam.fn_validacao_e_acesso_log(%s, %s)
-            """, (email, ""))
-
-        else:
-            password_hash = resultado[0]
-
-            if bcrypt.checkpw(
-                password.encode('utf-8'),
-                password_hash.encode('utf-8')
-            ): #Se password hashed for igual então adiciona na tabela logs 
-
-                cursor.execute("""
-                    SELECT * FROM tam.fn_validacao_e_acesso_log(%s, %s)
-                """, (email, password_hash))
-
-            else:
-               
-                cursor.execute("""
-                    SELECT * FROM tam.fn_validacao_e_acesso_log(%s, %s)
-                """, (email, ""))
-
-        sucesso, user_id, user_nome, mensagem = cursor.fetchone()
-
-        conn.commit()
-
-        return {
-            "sucesso": sucesso,
-            "user_id": user_id,
-            "user_nome": user_nome,
-            "mensagem": mensagem
-        }
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-
-        print("ERRO NO LOGIN:", repr(e))
+        return db.obter_device_id(id_device) is not None
+    except Exception:
         return None
 
-    finally:
-        if conn:
-            conn.close()
 
-#listar utilizadores
+#PAGINA ENTRADA
+@app.route('/', methods=["GET"])
+def home():
+    return "Bem-Vindo à Sala de Servidores da ESTGOH"
 
-def lista_users():
+#REGISTER
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.get_json()
 
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    if not data:
+        return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
-        cursor.execute("SELECT * FROM tam.fn_get_users()")
+    # aceita "name" ou "nome"
+    nome = data.get("name") or data.get("nome")
+    email = data.get("email")
+    password = data.get("password")
+    nif = data.get("nif")
 
-        resultado = cursor.fetchall()
+    if not nome or not email or not password or not nif:
+        return jsonify({"error": "Faltam campos obrigatórios"}), BAD_REQUEST_CODE
 
-        utilizadores = []
+    resultado = db.add_user(nome, email, password, nif)
 
+    if resultado == 'SUCESSO':
+        return jsonify({"message": "Utilizador adicionado com sucesso"}), SUCCESS_CODE
 
-        for row in resultado:
-            utilizadores.append({
-                "id": row[0],
-                "nome": row[1],
-                "email": row[2]
-            })
+    if resultado == 'EMAIL_EXISTE':
+        return jsonify({"error": "Email já registado"}), CONFLICT_CODE
 
-        return utilizadores
+    if resultado == 'NIF_EXISTE':
+        return jsonify({"error": "NIF já registado"}), CONFLICT_CODE
 
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        print("ERRO NA LISTAGEM DE UTILIZADORES:", repr(e))
-        return None
-    
-    finally:
-        if conn:
-            conn.close()
-
-def atualiza_user(id, nome, email, password, nif):
-
-    conn = None
-
-    try:
-
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # Hashing da password
-        password_bytes = password.encode('utf-8')
-        salt = bcrypt.gensalt()
-        passwordHashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
-
-        cursor.execute('SELECT tam.fn_atualiza_user(%s, %s, %s, %s, %s)', (id, nome, email, passwordHashed, nif))
+    return jsonify({"error": "Erro interno ao registar utilizador"}), SERVER_ERROR
 
 
-        resultado = cursor.fetchone()[0]
+#LOGIN (regista o log de acesso)
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
 
-        conn.commit()
+    if not data or not data.get("email") or not data.get("password"):
+        return jsonify({"error": "Falta de dados obrigatórios"}), BAD_REQUEST_CODE
 
-        return resultado
+    resultado = db.adiciona_logs(data["email"], data["password"])
 
-    except Exception as e:
-        if conn:
-            conn.rollback()
+    if resultado is None:
+        return jsonify({"error": "Erro interno ao iniciar sessão"}), SERVER_ERROR
 
-        print("ERRO AO ATUALIZAR UTILIZADOR:", repr(e))
-        return False
-    finally:
-        if conn:
-            conn.close()
+    if not resultado["sucesso"]:
+        return jsonify({"error": resultado["mensagem"]}), UNAUTHORIZED_CODE
 
-def remover_utilizador(id):
+    return jsonify(resultado), OK_CODE
 
-    conn = None
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+#listar users
+@app.route('/api/users', methods=['GET'])
+def listar_users():
+    resultado = db.lista_users()
 
-        cursor.execute('SELECT tam.fn_remove_utilizador(%s)', (id,))
+    if resultado is None:
+        return jsonify({"error": "Erro ao listar utilizadores"}), SERVER_ERROR
 
-        resultado = cursor.fetchone()[0]
+    return jsonify(resultado), OK_CODE
 
-        conn.commit()
-
-        return resultado
-    except Exception as e:
-
-        if conn:
-            conn.rollback()
-
-        print("ERRO AO ELIMINAR UTILIZADOR: ", repr(e))
-        return False
-    finally:
-        if conn:
-            conn.close()
-
-def adiciona_device(nome, modelo, id_alarme):
-
-    conn = None
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            'SELECT tam.adiciona_device(%s, %s, %s)',
-            (nome, modelo, id_alarme)
-        )
-
-        resultado = cursor.fetchone()[0]
-        conn.commit()
-
-        if not resultado:
-            return None
-
-        return resultado
-
-    except Exception as e:
-
-        if conn:
-            conn.rollback()
-
-        print("ERRO AO ADICIONAR DEVICE:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
 
 #obter user por id
-def obter_user_id(user_id):
+@app.route('/api/users/<id>', methods=['GET'])
+def listar_user_id(id):
+    resultado = db.obter_user_id(id)
 
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    if resultado is None:
+        return jsonify({"error": "Utilizador não encontrado"}), NOT_FOUND
 
-        cursor.execute('SELECT id, nome, email, nif FROM tam.fn_user_search_id(%s)', (user_id,))
+    return jsonify(resultado), OK_CODE
 
-        resultado = cursor.fetchone()
 
-        if resultado is None:
-            return None
+#atualizar user
+@app.route('/api/users/<id>', methods=['PUT'])
+def atualizar_utilizador(id):
+    data = request.get_json()
 
-        return {
-            "id": resultado[0],
-            "nome": resultado[1],
-            "email": resultado[2],
-            "nif": resultado[3]
-        }
+    if not data:
+        return jsonify({"error": "Dados em falta"}), BAD_REQUEST_CODE
 
-    except Exception as e:
-        print("ERRO NA LISTAGEM DO UTILIZADOR:", repr(e))
-        return None
+    # aceita "nome" ou "name"
+    nome = data.get("nome") or data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    nif = data.get("nif")
 
-    finally:
-        if conn:
-            conn.close()
+    if not nome or not email or not password or not nif:
+        return jsonify({"error": "Faltam campos obrigatórios"}), BAD_REQUEST_CODE
 
-#logs de um user
-def obter_logs_user(id):
+    resultado = db.atualiza_user(id, nome, email, password, nif)
 
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    if not resultado:
+        return jsonify({"error": "Utilizador não encontrado"}), NOT_FOUND
 
-        cursor.execute('SELECT log_id, login_time, status FROM tam.fn_logs_search_id(%s)', (id,))
+    return jsonify({"message": "Utilizador atualizado com sucesso"}), OK_CODE
 
-        resultado = cursor.fetchall()
 
-        logs = []
+#remover user
+@app.route('/api/users/<id>', methods=['DELETE'])
+def remover_utilizador(id):
+    resultado = db.remover_utilizador(id)
 
-        for row in resultado:
-            logs.append({
-                "log_id": row[0],
-                "login_time": row[1],
-                "status": row[2]
-            })
+    if not resultado:
+        return jsonify({"error": "Utilizador não encontrado"}), NOT_FOUND
 
-        return logs
-
-    except Exception as e:
-        print("ERRO NA LISTAGEM DOS LOGS DO UTILIZADOR:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
+    return jsonify({"message": "Utilizador removido com sucesso"}), OK_CODE
 
 #listar logs
-def lista_logs():
+@app.route('/api/logs', methods=['GET'])
+def listar_logs():
+    resultado = db.lista_logs()
 
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    if resultado is None:
+        return jsonify({"error": "Erro ao listar logs"}), SERVER_ERROR
 
-        cursor.execute('SELECT * FROM tam.fn_get_access_logs()')
+    return jsonify(resultado), OK_CODE
 
-        resultado = cursor.fetchall()
 
-        logs = []
+#logs de um user
+@app.route('/api/users/<id>/logs', methods=['GET'])
+def listar_logs_user(id):
+    user = db.obter_user_id(id)
 
-        for row in resultado:
-            logs.append({
-                "log_id": row[0],
-                "utilizador_nome": row[1],
-                "utilizador_email": row[2],
-                "login_time": row[3],
-                "status": row[4]
-            })
+    if user is None:
+        return jsonify({"error": "Utilizador não encontrado"}), NOT_FOUND
 
-        return logs
+    resultado = db.obter_logs_user(id)
 
-    except Exception as e:
-        print("ERRO NA LISTAGEM DOS LOGS:", repr(e))
-        return None
+    if resultado is None:
+        return jsonify({"error": "Erro ao listar logs do utilizador"}), SERVER_ERROR
 
-    finally:
-        if conn:
-            conn.close()
+    return jsonify(resultado), OK_CODE
+
+
+#último utilizador com acesso autorizado
+@app.route('/api/access/last-authorized', methods=['GET'])
+def ultimo_autorizado():
+    resultado = db.ultimo_utilizador_autorizado()
+
+    if resultado is None:
+        return jsonify({"error": "Ainda não há acessos autorizados"}), NOT_FOUND
+
+    return jsonify(resultado), OK_CODE
+
+#adicionar device (o id é gerado pela BD)
+@app.route('/api/devices', methods=['POST'])
+def adicionar_device():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
+
+    nome = data.get("name")
+    modelo = data.get("modelo")
+    id_alarm_events = data.get("id_alarm_events")
+
+    if not nome or not modelo:
+        return jsonify({"error": "Faltam campos obrigatórios (name, modelo)"}), BAD_REQUEST_CODE
+
+    resultado = db.adiciona_device(nome, modelo, id_alarm_events)
+
+    if resultado is None:
+        return jsonify({"error": "Não foi possível adicionar o dispositivo"}), SERVER_ERROR
+
+    return jsonify({
+        "message": "Dispositivo adicionado com sucesso",
+        "id": resultado
+    }), SUCCESS_CODE
+
 
 #listar devices
-def lista_devices():
+@app.route('/api/devices', methods=['GET'])
+def listar_devices():
+    resultado = db.lista_devices()
 
-    conn = None
+    if resultado is None:
+        return jsonify({"error": "Erro ao listar dispositivos"}), SERVER_ERROR
+
+    return jsonify(resultado), OK_CODE
+
+
+#obter device por id
+@app.route('/api/devices/<id>', methods=['GET'])
+def listar_devices_id(id):
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT * FROM tam.fn_list_devices()')
-
-        resultado = cursor.fetchall()
-
-        devices = []
-
-        for row in resultado:
-            devices.append({
-                "id": row[0],
-                "name": row[1],
-                "model": row[2],
-                "id_alarm_events": row[3]
-            })
-
-        return devices
-
-    except Exception as e:
-        print("ERRO NA LISTAGEM DOS DEVICES:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
-
-#adicionar temperatura
-def adicionar_temperatura(temp_value, id_device):
-
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            'SELECT tam.fn_processo_leitura_temperatura(%s, %s)',
-            (id_device, temp_value)
-        )
-
-        alarme_disparou = cursor.fetchone()[0]
-
-        conn.commit()
-
-        return {"alarme_disparou": alarme_disparou}
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-
-        print("ERRO AO ADICIONAR TEMPERATURA:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
-
-#NOVA: último utilizador com acesso autorizado
-def ultimo_utilizador_autorizado():
-
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT * FROM tam.fn_obter_ultimo_utilizador_autorizado()')
-
-        resultado = cursor.fetchone()
+        resultado = db.obter_device_id(id)
 
         if resultado is None:
-            return None
+            return jsonify({"error": "Device inexistente"}), NOT_FOUND
 
-        return {
-            "nome_utilizador": resultado[0],
-            "email_utilizador": resultado[1],
-            "data_hora_acesso": resultado[2]
-        }
+        return jsonify(resultado), OK_CODE
 
     except Exception as e:
-        print("ERRO NO ÚLTIMO UTILIZADOR AUTORIZADO:", repr(e))
-        return None
+        print("ERRO NA ROTA DEVICE:", repr(e))
+        return jsonify({"error": "Erro interno do servidor"}), SERVER_ERROR
 
-    finally:
-        if conn:
-            conn.close()
-
-#obter device por id (substitui a versão anterior)
-def obter_device_id(id_device):
-    conn = None
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT * FROM tam.fn_list_devices_id(%s)",
-            (id_device,)
-        )
-
-        resultado = cursor.fetchone()
-
-        if resultado is None:
-            return None
-
-        return {
-            "id": resultado[0],
-            "name": resultado[1],
-            "model": resultado[2],
-            "id_alarm_events": resultado[3]
-        }
-
-    except Exception as e:
-        print("ERRO REAL NA CONSULTA DO DEVICE:", repr(e))
-        raise
-
-    finally:
-        if conn:
-            conn.close()
 
 #atualizar device
-def atualiza_device(id_device, nome, modelo, id_alarme):
+@app.route('/api/devices/<id>', methods=['PUT'])
+def atualizar_device(id):
+    data = request.get_json()
 
-    conn = None
+    if not data:
+        return jsonify({"error": "Dados em falta"}), BAD_REQUEST_CODE
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    nome = data.get("name")
+    modelo = data.get("modelo")
+    id_alarm_events = data.get("id_alarm_events")
 
-        cursor.execute(
-            'SELECT tam.fn_update_device(%s, %s, %s, %s)',
-            (id_device, nome, modelo, id_alarme)
-        )
+    if not nome or not modelo:
+        return jsonify({"error": "Faltam campos obrigatórios (name, modelo)"}), BAD_REQUEST_CODE
 
-        resultado = cursor.fetchone()[0]
+    resultado = db.atualiza_device(id, nome, modelo, id_alarm_events)
 
-        conn.commit()
+    if not resultado:
+        return jsonify({"error": "Device não encontrado"}), NOT_FOUND
 
-        return resultado
+    return jsonify({"message": "Device atualizado com sucesso"}), OK_CODE
 
-    except Exception as e:
-        if conn:
-            conn.rollback()
-
-        print("ERRO AO ATUALIZAR DEVICE:", repr(e))
-        return False
-
-    finally:
-        if conn:
-            conn.close()
 
 #remover device
-def remove_device(id_device):
+@app.route('/api/devices/<id>', methods=['DELETE'])
+def remover_device(id):
+    resultado = db.remove_device(id)
 
-    conn = None
+    if not resultado:
+        return jsonify({"error": "Device não encontrado"}), NOT_FOUND
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    return jsonify({"message": "Device removido com sucesso"}), OK_CODE
 
-        cursor.execute('SELECT tam.fn_remove_device(%s)', (id_device,))
+#adicionar leitura de temperatura
+@app.route('/api/temp_readings', methods=['POST'])
+def adicionar_temperatura():
+    data = request.get_json()
 
-        resultado = cursor.fetchone()[0]
+    if not data:
+        return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
-        conn.commit()
-
-        return resultado
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-
-        print("ERRO AO REMOVER DEVICE:", repr(e))
-        return False
-
-    finally:
-        if conn:
-            conn.close()
-
-#listar leituras de temperatura (com limit)
-def lista_temp_readings(limit):
-
-    conn = None
+    if "temp_value" not in data or "id_device" not in data:
+        return jsonify({"error": "missing parameters"}), BAD_REQUEST_CODE
 
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
+        id_device = int(data["id_device"])
+        temp_value = float(data["temp_value"])
+    except (ValueError, TypeError):
+        return jsonify({"error": "id_device e temp_value têm de ser números"}), BAD_REQUEST_CODE
 
-        cursor.execute('SELECT id_device, temperature_value, recorded_at FROM tam.fn_list_temp_readings(%s)', (limit,))
+    existe = device_existe(id_device)
 
-        resultado = cursor.fetchall()
+    if existe is None:
+        return jsonify({"error": "Erro ao verificar o device"}), SERVER_ERROR
 
-        leituras = []
+    if not existe:
+        return jsonify({"error": "Device não encontrado"}), NOT_FOUND
 
-        for row in resultado:
-            leituras.append({
-                "id_device": row[0],
-                "temperature_value": float(row[1]),
-                "recorded_at": row[2]
-            })
+    # devolve {"alarme_disparou": True/False}, ou None se der erro
+    resultado = db.adicionar_temperatura(temp_value, id_device)
 
-        return leituras
+    if resultado is None:
+        return jsonify({"error": "Não foi possível guardar a temperatura"}), SERVER_ERROR
 
-    except Exception as e:
-        print("ERRO NA LISTAGEM DAS TEMPERATURAS:", repr(e))
-        return None
+    if resultado["alarme_disparou"]:
+        mensagem = "Temperatura adicionada. Alarme disparado!"
+    else:
+        mensagem = "Temperatura adicionada com sucesso"
 
-    finally:
-        if conn:
-            conn.close()
+    return jsonify({
+        "message": mensagem,
+        "alarme_disparou": resultado["alarme_disparou"]
+    }), SUCCESS_CODE
+
+
+#listar leituras (?limit=50)
+@app.route('/api/temp_readings', methods=['GET'])
+def listar_temp_readings():
+    limit = request.args.get("limit", default=50, type=int)
+
+    resultado = db.lista_temp_readings(limit)
+
+    if resultado is None:
+        return jsonify({"error": "Erro ao listar temperaturas"}), SERVER_ERROR
+
+    return jsonify(resultado), OK_CODE
+
 
 #última leitura de um device
-def ultima_temp_device(id_device):
+@app.route('/api/devices/<id>/temp_readings/latest', methods=['GET'])
+def ultima_temperatura(id):
+    resultado = db.ultima_temp_device(id)
 
-    conn = None
+    if resultado is None:
+        return jsonify({"error": "Sem leituras para este device"}), NOT_FOUND
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    return jsonify(resultado), OK_CODE
 
-        cursor.execute(
-            'SELECT id_device, temperature_value, recorded_at FROM tam.fn_latest_temp_reading(%s)',
-            (id_device,)
-        )
 
-        resultado = cursor.fetchone()
+#histórico de um device
+@app.route('/api/devices/<id>/temp_readings', methods=['GET'])
+def historico_temperatura(id):
+    data_inicio = request.args.get("from")
+    data_fim = request.args.get("to")
 
-        if resultado is None:
-            return None
+    if not data_inicio or not data_fim:
+        return jsonify({"error": "Faltam os parâmetros from e to"}), BAD_REQUEST_CODE
 
-        return {
-            "id_device": resultado[0],
-            "temperature_value": float(resultado[1]),
-            "recorded_at": resultado[2]
-        }
+    resultado = db.historico_temp_device(id, data_inicio, data_fim)
 
-    except Exception as e:
-        print("ERRO NA ÚLTIMA TEMPERATURA:", repr(e))
-        return None
+    if resultado is None:
+        return jsonify({"error": "Erro ao obter histórico"}), SERVER_ERROR
 
-    finally:
-        if conn:
-            conn.close()
+    return jsonify(resultado), OK_CODE
 
-#histórico de um device (de/até)
-def historico_temp_device(id_device, data_inicio, data_fim):
+#listar alarmes (?active=true para só os não resolvidos)
+@app.route('/api/alarms', methods=['GET'])
+def listar_alarmes():
+    ativos = request.args.get("active", "false").lower() == "true"
 
-    conn = None
+    resultado = db.lista_alarmes(ativos)
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    if resultado is None:
+        return jsonify({"error": "Erro ao listar alarmes"}), SERVER_ERROR
 
-        cursor.execute(
-            'SELECT id_device, temperature_value, recorded_at FROM tam.fn_temp_readings_by_device(%s, %s, %s)',
-            (id_device, data_inicio, data_fim)
-        )
+    return jsonify(resultado), OK_CODE
 
-        resultado = cursor.fetchall()
-
-        leituras = []
-
-        for row in resultado:
-            leituras.append({
-                "id_device": row[0],
-                "temperature_value": float(row[1]),
-                "recorded_at": row[2]
-            })
-
-        return leituras
-
-    except Exception as e:
-        print("ERRO NO HISTÓRICO DE TEMPERATURAS:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
-
-#listar alarmes (ativos = só os não resolvidos)
-def lista_alarmes(ativos):
-
-    conn = None
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT id, id_device, trigger_reason, resolved_at FROM tam.fn_list_alarms(%s)', (ativos,))
-
-        resultado = cursor.fetchall()
-
-        alarmes = []
-
-        for row in resultado:
-            alarmes.append({
-                "id": row[0],
-                "id_device": row[1],
-                "trigger_reason": row[2],
-                "resolved_at": row[3]
-            })
-
-        return alarmes
-
-    except Exception as e:
-        print("ERRO NA LISTAGEM DOS ALARMES:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
 
 #alarmes de um device
-def alarmes_device(id_device):
+@app.route('/api/devices/<id>/alarms', methods=['GET'])
+def listar_alarmes_device(id):
+    resultado = db.alarmes_device(id)
 
-    conn = None
+    if resultado is None:
+        return jsonify({"error": "Erro ao listar alarmes do device"}), SERVER_ERROR
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    return jsonify(resultado), OK_CODE
 
-        cursor.execute('SELECT id, id_device, trigger_reason, resolved_at FROM tam.fn_alarms_by_device(%s)', (id_device,))
-
-        resultado = cursor.fetchall()
-
-        alarmes = []
-
-        for row in resultado:
-            alarmes.append({
-                "id": row[0],
-                "id_device": row[1],
-                "trigger_reason": row[2],
-                "resolved_at": row[3]
-            })
-
-        return alarmes
-
-    except Exception as e:
-        print("ERRO NOS ALARMES DO DEVICE:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
 
 #marcar alarme como resolvido
-def resolve_alarme(id_alarme):
+@app.route('/api/alarms/<id>/resolve', methods=['PUT'])
+def resolver_alarme(id):
+    resultado = db.resolve_alarme(id)
 
-    conn = None
+    if not resultado:
+        return jsonify({"error": "Alarme não encontrado ou já resolvido"}), NOT_FOUND
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    return jsonify({"message": "Alarme resolvido com sucesso"}), OK_CODE
 
-        cursor.execute('SELECT tam.fn_resolve_alarm(%s)', (id_alarme,))
+#enviar comando (fan_on, fan_off, alarm_on, alarm_off)
+@app.route('/api/commands', methods=['POST'])
+def enviar_comando():
+    data = request.get_json()
 
-        resultado = cursor.fetchone()[0]
+    if not data:
+        return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
-        conn.commit()
+    if "id_device" not in data or "command" not in data:
+        return jsonify({"error": "missing parameters"}), BAD_REQUEST_CODE
 
-        return resultado
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-
-        print("ERRO AO RESOLVER ALARME:", repr(e))
-        return False
-
-    finally:
-        if conn:
-            conn.close()
-
-#enviar comando
-def adiciona_comando(id_device, comando):
-
-    conn = None
+    if data["command"] not in ["fan_on", "fan_off", "alarm_on", "alarm_off"]:
+        return jsonify({"error": "Comando inválido"}), BAD_REQUEST_CODE
 
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
+        id_device = int(data["id_device"])
+    except (ValueError, TypeError):
+        return jsonify({"error": "id_device tem de ser um número"}), BAD_REQUEST_CODE
 
-        cursor.execute('SELECT tam.fn_add_command(%s, %s)', (id_device, comando))
+    existe = device_existe(id_device)
 
-        resultado = cursor.fetchone()[0]
+    if existe is None:
+        return jsonify({"error": "Erro ao verificar o device"}), SERVER_ERROR
 
-        conn.commit()
+    if not existe:
+        return jsonify({"error": "Device não encontrado"}), NOT_FOUND
 
-        return resultado
+    # devolve o id do comando novo, ou None se der erro
+    resultado = db.adiciona_comando(id_device, data["command"])
 
-    except Exception as e:
-        if conn:
-            conn.rollback()
+    if resultado is None:
+        return jsonify({"error": "Não foi possível enviar o comando"}), SERVER_ERROR
 
-        print("ERRO AO ADICIONAR COMANDO:", repr(e))
-        return None
+    return jsonify({
+        "message": "Comando enviado com sucesso",
+        "id": resultado
+    }), SUCCESS_CODE
 
-    finally:
-        if conn:
-            conn.close()
 
 #listar comandos
-def lista_comandos():
+@app.route('/api/commands', methods=['GET'])
+def listar_comandos():
+    resultado = db.lista_comandos()
 
-    conn = None
+    if resultado is None:
+        return jsonify({"error": "Erro ao listar comandos"}), SERVER_ERROR
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    return jsonify(resultado), OK_CODE
 
-        cursor.execute('SELECT id, id_device, command_text, executed FROM tam.fn_list_commands()')
 
-        resultado = cursor.fetchall()
+#comandos pendentes de um device (o Arduino consulta isto)
+@app.route('/api/devices/<id>/commands/pending', methods=['GET'])
+def listar_comandos_pendentes(id):
+    resultado = db.comandos_pendentes(id)
 
-        comandos = []
+    if resultado is None:
+        return jsonify({"error": "Erro ao listar comandos pendentes"}), SERVER_ERROR
 
-        for row in resultado:
-            comandos.append({
-                "id": row[0],
-                "id_device": row[1],
-                "command_text": row[2],
-                "executed": row[3]
-            })
+    return jsonify(resultado), OK_CODE
 
-        return comandos
-
-    except Exception as e:
-        print("ERRO NA LISTAGEM DOS COMANDOS:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
-
-#comandos pendentes de um device
-def comandos_pendentes(id_device):
-
-    conn = None
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT id, id_device, command_text, executed FROM tam.fn_pending_commands(%s)', (id_device,))
-
-        resultado = cursor.fetchall()
-
-        comandos = []
-
-        for row in resultado:
-            comandos.append({
-                "id": row[0],
-                "id_device": row[1],
-                "command_text": row[2],
-                "executed": row[3]
-            })
-
-        return comandos
-
-    except Exception as e:
-        print("ERRO NOS COMANDOS PENDENTES:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
 
 #marcar comando como executado
-def marca_comando_feito(id_comando):
+@app.route('/api/commands/<id>/done', methods=['PUT'])
+def comando_executado(id):
+    resultado = db.marca_comando_feito(id)
 
-    conn = None
+    if not resultado:
+        return jsonify({"error": "Comando não encontrado ou já executado"}), NOT_FOUND
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT tam.fn_mark_command_done(%s)', (id_comando,))
-
-        resultado = cursor.fetchone()[0]
-
-        conn.commit()
-
-        return resultado
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-
-        print("ERRO AO MARCAR COMANDO COMO EXECUTADO:", repr(e))
-        return False
-
-    finally:
-        if conn:
-            conn.close()
+    return jsonify({"message": "Comando marcado como executado"}), OK_CODE
