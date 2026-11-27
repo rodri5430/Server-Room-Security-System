@@ -425,7 +425,7 @@ def listar_comandos():
 
 
 #comandos pendentes de um device (o Arduino consulta isto)
-@app.route('/api/devices/<id>/commands/pending', methods=['GET'])
+@app.route('/api/devices/commands/pending', methods=['GET'])
 def listar_comandos_pendentes(id):
     resultado = db.comandos_pendentes(id)
 
