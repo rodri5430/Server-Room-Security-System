@@ -8,9 +8,7 @@ def get_connection():
         host=os.getenv('DATABASE_HOST'),
         database=os.getenv('DATABASE_NAME'),
         user=os.getenv('DATABASE_USER'),
-        password=os.getenv('DATABASE_PASSWORD'),
-        port=os.getenv('DATABASE_PORT', '5432'),
-        connect_timeout=10
+        password=os.getenv('DATABASE_PASSWORD')
     )
 
 #MÉTODOS ADICIONAR À BD
@@ -50,7 +48,7 @@ def add_user(nome, email, password, nif):
         if conn:
             conn.close()
 
-#Login + registo do log (a validação da password é feita aqui com bcrypt)
+#Login + registo do log
 def adiciona_logs(email, password):
 
     conn = None
@@ -207,7 +205,7 @@ def remover_utilizador(id):
         if conn:
             conn.close()
 
-def adiciona_device(nome, modelo, id_alarme):
+def adiciona_device(nome, modelo):
 
     conn = None
 
@@ -216,8 +214,8 @@ def adiciona_device(nome, modelo, id_alarme):
         cursor = conn.cursor()
 
         cursor.execute(
-            'SELECT tam.adiciona_device(%s, %s, %s)',
-            (nome, modelo, id_alarme)
+            "SELECT tam.adiciona_device(%s, %s)",
+        (nome, modelo)
         )
 
         resultado = cursor.fetchone()[0]
@@ -241,7 +239,6 @@ def adiciona_device(nome, modelo, id_alarme):
             conn.close()
 
 #obter user por id
-#fn_user_search_id devolve TABLE, por isso é SELECT * FROM e não SELECT fn()
 def obter_user_id(user_id):
 
     conn = None
@@ -271,7 +268,7 @@ def obter_user_id(user_id):
         if conn:
             conn.close()
 
-#logs de um user (fn_logs_search_id também devolve TABLE)
+#logs de um user
 def obter_logs_user(id):
 
     conn = None
@@ -302,7 +299,7 @@ def obter_logs_user(id):
         if conn:
             conn.close()
 
-#listar logs (faltava o FROM)
+#listar logs
 def lista_logs():
 
     conn = None
@@ -335,7 +332,7 @@ def lista_logs():
         if conn:
             conn.close()
 
-#listar devices (faltava o FROM; as colunas vêm de tam.devices)
+#listar devices
 def lista_devices():
 
     conn = None
@@ -343,7 +340,7 @@ def lista_devices():
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT id, name, model, id_alarm_events FROM tam.fn_list_devices()')
+        cursor.execute('SELECT * FROM tam.fn_list_devices()')
 
         resultado = cursor.fetchall()
 
@@ -353,8 +350,7 @@ def lista_devices():
             devices.append({
                 "id": row[0],
                 "name": row[1],
-                "model": row[2],
-                "id_alarm_events": row[3]
+                "model": row[2]
             })
 
         return devices
@@ -368,8 +364,6 @@ def lista_devices():
             conn.close()
 
 #adicionar temperatura
-#a função da BD chama-se fn_processo_leitura_temperatura(id_device, temperatura)
-#ATENÇÃO: a ordem dos parâmetros é id_device primeiro. Devolve TRUE se disparou alarme novo
 def adicionar_temperatura(temp_value, id_device):
 
     conn = None
@@ -399,7 +393,7 @@ def adicionar_temperatura(temp_value, id_device):
         if conn:
             conn.close()
 
-#NOVA: último utilizador com acesso autorizado (para mostrar quando o alarme dispara)
+#NOVA: último utilizador com acesso autorizado
 def ultimo_utilizador_autorizado():
 
     conn = None
@@ -437,7 +431,7 @@ def obter_device_id(id_device):
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT id, name, model, id_alarm_events FROM tam.fn_list_devices_id(%s)",
+            "SELECT * FROM tam.fn_list_devices_id(%s)",
             (id_device,)
         )
 
@@ -449,8 +443,7 @@ def obter_device_id(id_device):
         return {
             "id": resultado[0],
             "name": resultado[1],
-            "model": resultado[2],
-            "id_alarm_events": resultado[3]
+            "model": resultado[2]
         }
 
     except Exception as e:
@@ -462,7 +455,7 @@ def obter_device_id(id_device):
             conn.close()
 
 #atualizar device
-def atualiza_device(id_device, nome, modelo, id_alarme):
+def atualiza_device(id_device, nome, modelo):
 
     conn = None
 
@@ -471,8 +464,8 @@ def atualiza_device(id_device, nome, modelo, id_alarme):
         cursor = conn.cursor()
 
         cursor.execute(
-            'SELECT tam.fn_update_device(%s, %s, %s, %s)',
-            (id_device, nome, modelo, id_alarme)
+        "SELECT tam.fn_update_device(%s, %s, %s)",
+        (id_device, nome, modelo)
         )
 
         resultado = cursor.fetchone()[0]
@@ -509,19 +502,12 @@ def remove_device(id_device):
 
         return resultado
 
-    except psycopg2.errors.ForeignKeyViolation:
-        # o device tem leituras, alarmes ou comandos associados
-        if conn:
-            conn.rollback()
-
-        return "EM_USO"
-
     except Exception as e:
         if conn:
             conn.rollback()
 
         print("ERRO AO REMOVER DEVICE:", repr(e))
-        return None
+        return False
 
     finally:
         if conn:
@@ -602,7 +588,7 @@ def historico_temp_device(id_device, data_inicio, data_fim):
         cursor = conn.cursor()
 
         cursor.execute(
-            'SELECT id_device, temperature_value, recorded_at FROM tam.fn_temp_readings_by_device(%s, %s::timestamptz, %s::timestamptz)',
+            'SELECT id_device, temperature_value, recorded_at FROM tam.fn_temp_readings_by_device(%s, %s, %s)',
             (id_device, data_inicio, data_fim)
         )
 
@@ -660,38 +646,6 @@ def lista_alarmes(ativos):
         if conn:
             conn.close()
 
-#alarmes de um device
-def alarmes_device(id_device):
-
-    conn = None
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT id, id_device, trigger_reason, resolved_at FROM tam.fn_alarms_by_device(%s)', (id_device,))
-
-        resultado = cursor.fetchall()
-
-        alarmes = []
-
-        for row in resultado:
-            alarmes.append({
-                "id": row[0],
-                "id_device": row[1],
-                "trigger_reason": row[2],
-                "resolved_at": row[3]
-            })
-
-        return alarmes
-
-    except Exception as e:
-        print("ERRO NOS ALARMES DO DEVICE:", repr(e))
-        return None
-
-    finally:
-        if conn:
-            conn.close()
 
 #marcar alarme como resolvido
 def resolve_alarme(id_alarme):
