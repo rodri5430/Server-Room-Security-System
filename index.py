@@ -1,13 +1,11 @@
 #index.py
 import os
-import math
-from datetime import datetime
 from flask import Flask, jsonify, request
 import db
 
 app = Flask(__name__)
 app.debug = os.getenv('FLASK_DEBUG') == '1'
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')   # definir na Vercel (sem valor por omissão)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'mysecretkey')
 
 OK_CODE = 200
 SUCCESS_CODE = 201
@@ -17,7 +15,14 @@ NOT_FOUND = 404
 CONFLICT_CODE = 409
 SERVER_ERROR = 500
 
-COMANDOS_VALIDOS = ["fan_on", "fan_off", "alarm_on", "alarm_off"]
+
+#Verifica se um device existe
+#True = existe, False = não existe, None = erro na BD
+def device_existe(id_device):
+    try:
+        return db.obter_device_id(id_device) is not None
+    except Exception:
+        return None
 
 
 #PAGINA ENTRADA
@@ -25,13 +30,10 @@ COMANDOS_VALIDOS = ["fan_on", "fan_off", "alarm_on", "alarm_off"]
 def home():
     return "Bem-Vindo à Sala de Servidores da ESTGOH"
 
-
-# ======================= AUTH / USERS =======================
-
 #REGISTER
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    data = request.get_json(silent=True)
+    data = request.get_json()
 
     if not data:
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
@@ -40,16 +42,10 @@ def register():
     nome = data.get("name") or data.get("nome")
     email = data.get("email")
     password = data.get("password")
-    nif = str(data.get("nif") or "").strip()
+    nif = data.get("nif")
 
     if not nome or not email or not password or not nif:
         return jsonify({"error": "Faltam campos obrigatórios"}), BAD_REQUEST_CODE
-
-    if "@" not in email or "." not in email.split("@")[-1]:
-        return jsonify({"error": "Email inválido"}), BAD_REQUEST_CODE
-
-    if len(nif) != 9 or not nif.isdigit():
-        return jsonify({"error": "NIF inválido (9 dígitos)"}), BAD_REQUEST_CODE
 
     resultado = db.add_user(nome, email, password, nif)
 
@@ -68,7 +64,7 @@ def register():
 #LOGIN (regista o log de acesso)
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    data = request.get_json(silent=True)
+    data = request.get_json()
 
     if not data or not data.get("email") or not data.get("password"):
         return jsonify({"error": "Falta de dados obrigatórios"}), BAD_REQUEST_CODE
@@ -96,7 +92,7 @@ def listar_users():
 
 
 #obter user por id
-@app.route('/api/users/<int:id>', methods=['GET'])
+@app.route('/api/users/<id>', methods=['GET'])
 def listar_user_id(id):
     resultado = db.obter_user_id(id)
 
@@ -107,9 +103,9 @@ def listar_user_id(id):
 
 
 #atualizar user
-@app.route('/api/users/<int:id>', methods=['PUT'])
+@app.route('/api/users/<id>', methods=['PUT'])
 def atualizar_utilizador(id):
-    data = request.get_json(silent=True)
+    data = request.get_json()
 
     if not data:
         return jsonify({"error": "Dados em falta"}), BAD_REQUEST_CODE
@@ -118,16 +114,10 @@ def atualizar_utilizador(id):
     nome = data.get("nome") or data.get("name")
     email = data.get("email")
     password = data.get("password")
-    nif = str(data.get("nif") or "").strip()
+    nif = data.get("nif")
 
     if not nome or not email or not password or not nif:
         return jsonify({"error": "Faltam campos obrigatórios"}), BAD_REQUEST_CODE
-
-    if "@" not in email or "." not in email.split("@")[-1]:
-        return jsonify({"error": "Email inválido"}), BAD_REQUEST_CODE
-
-    if len(nif) != 9 or not nif.isdigit():
-        return jsonify({"error": "NIF inválido (9 dígitos)"}), BAD_REQUEST_CODE
 
     resultado = db.atualiza_user(id, nome, email, password, nif)
 
@@ -138,7 +128,7 @@ def atualizar_utilizador(id):
 
 
 #remover user
-@app.route('/api/users/<int:id>', methods=['DELETE'])
+@app.route('/api/users/<id>', methods=['DELETE'])
 def remover_utilizador(id):
     resultado = db.remover_utilizador(id)
 
@@ -146,9 +136,6 @@ def remover_utilizador(id):
         return jsonify({"error": "Utilizador não encontrado"}), NOT_FOUND
 
     return jsonify({"message": "Utilizador removido com sucesso"}), OK_CODE
-
-
-# ======================= LOGS =======================
 
 #listar logs
 @app.route('/api/logs', methods=['GET'])
@@ -162,7 +149,7 @@ def listar_logs():
 
 
 #logs de um user
-@app.route('/api/users/<int:id>/logs', methods=['GET'])
+@app.route('/api/users/<id>/logs', methods=['GET'])
 def listar_logs_user(id):
     user = db.obter_user_id(id)
 
@@ -187,31 +174,21 @@ def ultimo_autorizado():
 
     return jsonify(resultado), OK_CODE
 
-
-# ======================= DEVICES =======================
-
 #adicionar device (o id é gerado pela BD)
 @app.route('/api/devices', methods=['POST'])
 def adicionar_device():
-    data = request.get_json(silent=True)
+    data = request.get_json()
 
     if not data:
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
 
     nome = data.get("name")
     modelo = data.get("modelo")
-    id_alarm_events = data.get("id_alarm_events")
 
     if not nome or not modelo:
         return jsonify({"error": "Faltam campos obrigatórios (name, modelo)"}), BAD_REQUEST_CODE
 
-    if id_alarm_events is not None:
-        try:
-            id_alarm_events = int(id_alarm_events)
-        except (ValueError, TypeError):
-            return jsonify({"error": "id_alarm_events tem de ser um número"}), BAD_REQUEST_CODE
-
-    resultado = db.adiciona_device(nome, modelo, id_alarm_events)
+    resultado = db.adiciona_device(nome, modelo)
 
     if resultado is None:
         return jsonify({"error": "Não foi possível adicionar o dispositivo"}), SERVER_ERROR
@@ -234,7 +211,7 @@ def listar_devices():
 
 
 #obter device por id
-@app.route('/api/devices/<int:id>', methods=['GET'])
+@app.route('/api/devices/<id>', methods=['GET'])
 def listar_devices_id(id):
     try:
         resultado = db.obter_device_id(id)
@@ -250,9 +227,9 @@ def listar_devices_id(id):
 
 
 #atualizar device
-@app.route('/api/devices/<int:id>', methods=['PUT'])
+@app.route('/api/devices/<id>', methods=['PUT'])
 def atualizar_device(id):
-    data = request.get_json(silent=True)
+    data = request.get_json()
 
     if not data:
         return jsonify({"error": "Dados em falta"}), BAD_REQUEST_CODE
@@ -263,27 +240,7 @@ def atualizar_device(id):
     if not nome or not modelo:
         return jsonify({"error": "Faltam campos obrigatórios (name, modelo)"}), BAD_REQUEST_CODE
 
-    if "id_alarm_events" in data:
-        id_alarm_events = data["id_alarm_events"]
-
-        if id_alarm_events is not None:
-            try:
-                id_alarm_events = int(id_alarm_events)
-            except (ValueError, TypeError):
-                return jsonify({"error": "id_alarm_events tem de ser um número"}), BAD_REQUEST_CODE
-    else:
-        # não foi enviado: mantém o valor que o device já tem
-        try:
-            atual = db.obter_device_id(id)
-        except Exception:
-            return jsonify({"error": "Erro ao obter o device"}), SERVER_ERROR
-
-        if atual is None:
-            return jsonify({"error": "Device não encontrado"}), NOT_FOUND
-
-        id_alarm_events = atual["id_alarm_events"]
-
-    resultado = db.atualiza_device(id, nome, modelo, id_alarm_events)
+    resultado = db.atualiza_device(id, nome, modelo)
 
     if not resultado:
         return jsonify({"error": "Device não encontrado"}), NOT_FOUND
@@ -292,28 +249,19 @@ def atualizar_device(id):
 
 
 #remover device
-@app.route('/api/devices/<int:id>', methods=['DELETE'])
+@app.route('/api/devices/<id>', methods=['DELETE'])
 def remover_device(id):
     resultado = db.remove_device(id)
-
-    if resultado is None:
-        return jsonify({"error": "Erro ao remover o device"}), SERVER_ERROR
-
-    if resultado == "EM_USO":
-        return jsonify({"error": "O device tem leituras, alarmes ou comandos associados"}), CONFLICT_CODE
 
     if not resultado:
         return jsonify({"error": "Device não encontrado"}), NOT_FOUND
 
     return jsonify({"message": "Device removido com sucesso"}), OK_CODE
 
-
-# ======================= TEMPERATURA =======================
-
-#adicionar leitura de temperatura (o Arduino chama isto)
+#adicionar leitura de temperatura
 @app.route('/api/temp_readings', methods=['POST'])
 def adicionar_temperatura():
-    data = request.get_json(silent=True)
+    data = request.get_json()
 
     if not data:
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
@@ -327,16 +275,12 @@ def adicionar_temperatura():
     except (ValueError, TypeError):
         return jsonify({"error": "id_device e temp_value têm de ser números"}), BAD_REQUEST_CODE
 
-    # recusa NaN/infinito e valores impossíveis (sensor avariado)
-    if not math.isfinite(temp_value) or temp_value < -50 or temp_value > 150:
-        return jsonify({"error": "temp_value fora do intervalo válido (-50 a 150)"}), BAD_REQUEST_CODE
+    existe = device_existe(id_device)
 
-    try:
-        device = db.obter_device_id(id_device)
-    except Exception:
+    if existe is None:
         return jsonify({"error": "Erro ao verificar o device"}), SERVER_ERROR
 
-    if device is None:
+    if not existe:
         return jsonify({"error": "Device não encontrado"}), NOT_FOUND
 
     # devolve {"alarme_disparou": True/False}, ou None se der erro
@@ -356,11 +300,10 @@ def adicionar_temperatura():
     }), SUCCESS_CODE
 
 
-#listar leituras (?limit=50, máximo 500)
+#listar leituras (?limit=50)
 @app.route('/api/temp_readings', methods=['GET'])
 def listar_temp_readings():
     limit = request.args.get("limit", default=50, type=int)
-    limit = max(1, min(limit, 500))
 
     resultado = db.lista_temp_readings(limit)
 
@@ -371,7 +314,7 @@ def listar_temp_readings():
 
 
 #última leitura de um device
-@app.route('/api/devices/<int:id>/temp_readings/latest', methods=['GET'])
+@app.route('/api/devices/<id>/temp_readings/latest', methods=['GET'])
 def ultima_temperatura(id):
     resultado = db.ultima_temp_device(id)
 
@@ -381,8 +324,8 @@ def ultima_temperatura(id):
     return jsonify(resultado), OK_CODE
 
 
-#histórico de um device (?from=2026-11-25T00:00:00&to=2026-11-25T23:59:59)
-@app.route('/api/devices/<int:id>/temp_readings', methods=['GET'])
+#histórico de um device
+@app.route('/api/devices/<id>/temp_readings', methods=['GET'])
 def historico_temperatura(id):
     data_inicio = request.args.get("from")
     data_fim = request.args.get("to")
@@ -390,25 +333,12 @@ def historico_temperatura(id):
     if not data_inicio or not data_fim:
         return jsonify({"error": "Faltam os parâmetros from e to"}), BAD_REQUEST_CODE
 
-    try:
-        inicio = datetime.fromisoformat(data_inicio)
-        fim = datetime.fromisoformat(data_fim)
-
-        if inicio > fim:
-            return jsonify({"error": "'from' tem de ser anterior a 'to'"}), BAD_REQUEST_CODE
-
-    except (ValueError, TypeError):
-        return jsonify({"error": "Datas inválidas (usar ISO 8601, ex: 2026-11-25T10:00:00)"}), BAD_REQUEST_CODE
-
     resultado = db.historico_temp_device(id, data_inicio, data_fim)
 
     if resultado is None:
         return jsonify({"error": "Erro ao obter histórico"}), SERVER_ERROR
 
     return jsonify(resultado), OK_CODE
-
-
-# ======================= ALARMES =======================
 
 #listar alarmes (?active=true para só os não resolvidos)
 @app.route('/api/alarms', methods=['GET'])
@@ -424,7 +354,7 @@ def listar_alarmes():
 
 
 #alarmes de um device
-@app.route('/api/devices/<int:id>/alarms', methods=['GET'])
+@app.route('/api/devices/<id>/alarms', methods=['GET'])
 def listar_alarmes_device(id):
     resultado = db.alarmes_device(id)
 
@@ -435,7 +365,7 @@ def listar_alarmes_device(id):
 
 
 #marcar alarme como resolvido
-@app.route('/api/alarms/<int:id>/resolve', methods=['PUT'])
+@app.route('/api/alarms/<id>/resolve', methods=['PUT'])
 def resolver_alarme(id):
     resultado = db.resolve_alarme(id)
 
@@ -444,13 +374,10 @@ def resolver_alarme(id):
 
     return jsonify({"message": "Alarme resolvido com sucesso"}), OK_CODE
 
-
-# ======================= COMANDOS =======================
-
 #enviar comando (fan_on, fan_off, alarm_on, alarm_off)
 @app.route('/api/commands', methods=['POST'])
 def enviar_comando():
-    data = request.get_json(silent=True)
+    data = request.get_json()
 
     if not data:
         return jsonify({"error": "invalid parameters"}), BAD_REQUEST_CODE
@@ -458,23 +385,20 @@ def enviar_comando():
     if "id_device" not in data or "command" not in data:
         return jsonify({"error": "missing parameters"}), BAD_REQUEST_CODE
 
-    if data["command"] not in COMANDOS_VALIDOS:
-        return jsonify({
-            "error": "Comando inválido",
-            "validos": COMANDOS_VALIDOS
-        }), BAD_REQUEST_CODE
+    if data["command"] not in ["fan_on", "fan_off", "alarm_on", "alarm_off"]:
+        return jsonify({"error": "Comando inválido"}), BAD_REQUEST_CODE
 
     try:
         id_device = int(data["id_device"])
     except (ValueError, TypeError):
         return jsonify({"error": "id_device tem de ser um número"}), BAD_REQUEST_CODE
 
-    try:
-        device = db.obter_device_id(id_device)
-    except Exception:
+    existe = device_existe(id_device)
+
+    if existe is None:
         return jsonify({"error": "Erro ao verificar o device"}), SERVER_ERROR
 
-    if device is None:
+    if not existe:
         return jsonify({"error": "Device não encontrado"}), NOT_FOUND
 
     # devolve o id do comando novo, ou None se der erro
@@ -501,7 +425,7 @@ def listar_comandos():
 
 
 #comandos pendentes de um device (o Arduino consulta isto)
-@app.route('/api/devices/<int:id>/commands/pending', methods=['GET'])
+@app.route('/api/devices/<id>/commands/pending', methods=['GET'])
 def listar_comandos_pendentes(id):
     resultado = db.comandos_pendentes(id)
 
@@ -511,8 +435,8 @@ def listar_comandos_pendentes(id):
     return jsonify(resultado), OK_CODE
 
 
-#marcar comando como executado (o Arduino chama isto)
-@app.route('/api/commands/<int:id>/done', methods=['PUT'])
+#marcar comando como executado
+@app.route('/api/commands/<id>/done', methods=['PUT'])
 def comando_executado(id):
     resultado = db.marca_comando_feito(id)
 
