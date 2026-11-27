@@ -737,7 +737,7 @@ def lista_comandos():
             conn.close()
 
 #comandos pendentes de um device
-def comandos_pendentes(id_device):
+def comandos_pendentes():
 
     conn = None
 
@@ -745,7 +745,7 @@ def comandos_pendentes(id_device):
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT id, id_device, command_text, executed FROM tam.fn_pending_commands(%s)', (id_device,))
+        cursor.execute('SELECT * FROM tam.fn_pending_commands()')
 
         resultado = cursor.fetchall()
 
